@@ -8,7 +8,9 @@ export default defineConfig({
 			compilerOptions: {
 				runes: ({ filename }) => filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
-      adapter: adapter(),
+      adapter: adapter({
+        pages: 'docs'
+      }),
       output: {
 				bundleStrategy: 'inline'
 			}
