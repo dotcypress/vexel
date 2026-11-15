@@ -70,21 +70,29 @@
 		runId++;
 	}
 
+	// The last example loaded from the menu or the help, so loading another one over it
+	// (while it is still unedited) needs no confirmation.
+	let lastLoaded = '';
+
 	// Loading an example replaces the editor, so ask first unless the code is untouched
-	// (blank, the default sketch, or another example).
+	// (blank, the default sketch, or an unedited example).
+	function loadCode(newCode: string, name: string) {
+		const pristine =
+			code.trim() === '' ||
+			code === DEFAULT_CODE ||
+			code === lastLoaded ||
+			EXAMPLES.some((x) => x.code === code);
+		if (!pristine && !confirm('Replace the current code with the "' + name + '" example?')) return;
+		code = lastLoaded = newCode;
+		run();
+	}
+
 	function loadExample(e: Event) {
 		const select = e.currentTarget as HTMLSelectElement;
 		const example = EXAMPLES.find((x) => x.id === select.value);
 		// Go back to the placeholder so the same example can be picked again.
 		select.value = '';
-		if (!example) return;
-		const pristine =
-			code.trim() === '' ||
-			code === DEFAULT_CODE ||
-			EXAMPLES.some((x) => x.code === code);
-		if (!pristine && !confirm('Replace the current code with the "' + example.title + '" example?')) return;
-		code = example.code;
-		run();
+		if (example) loadCode(example.code, example.title);
 	}
 
 	function reset() {
@@ -109,7 +117,7 @@
 	}
 </script>
 
-<Help bind:open={helpOpen} />
+<Help bind:open={helpOpen} onload={loadCode} />
 
 <svelte:head>
 	<title>Vexel — live coding graphics</title>

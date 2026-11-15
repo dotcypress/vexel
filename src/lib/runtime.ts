@@ -1,19 +1,30 @@
-export const DEFAULT_CODE = `animate((t) => {
-  clear('#07080d')
-  grid()
-  axes()
+import logoSvg from './assets/logo.svg?raw';
+import faviconSvg from './assets/favicon.svg?raw';
 
-  let speed = slider("Speed", 0, 1, 0.05)
-  let radius = slider("Radius", 1, 10, 7)
+export const PROJECT_URL = 'https://github.com/dotcypress/vexel';
 
-  for (let i = 1; i < 900; i++) {
-    const a = i * 2.4 + t * speed
-    const r = radius * sqrt(i) * (1 + 0.1 * sin(t * 1.5 - i * 0.02))
+export const DEFAULT_CODE = `// A sunflower: each dot sits at the golden angle from the last, which packs them into
+// spirals. Drag the sliders to change the speed, spread and dot count.
+
+const golden = PI * (3 - sqrt(5))   // the golden angle, about 2.4 radians
+let angle = 0                       // grows with time, so changing the speed never jumps
+
+fit(-340, -340, 680, 680)
+
+animate((t, dt) => {
+  const speed = slider('speed', 0, 2, 0.14)
+  const spread = slider('spread', 5, 20, 10)
+  const count = slider('dots', 100, 1500, 900, 10)
+  angle += speed * dt
+
+  clear('#282c34')
+  for (let i = 1; i < count; i++) {
+    const a = i * golden + angle
+    const r = spread * sqrt(i) * (1 + 0.1 * sin(t * 1.5 - i * 0.02))
     const size = 2 + 5 * (0.5 + 0.5 * sin(i * 0.05 - t * 2))
-    point(cos(a) * r, sin(a) * r, size, hsl(i * 0.4 + t * 30, 90, 62))
+    point(cos(a) * r, sin(a) * r, size, hsl(i * 0.4 + t * 30, 90, 60))
   }
-});
-`;
+})`;
 
 // Runs inside the sandboxed iframe. Kept as plain ES5-style JS in a template string.
 // Must not contain backticks or dollar-brace sequences.
@@ -402,6 +413,92 @@ function heat(f, ramp) {
   ctx.restore();
 }
 
+// Numbers from a up to, but not including, b in steps of step (default 1), e.g.
+// range(0, 1, 0.25) is [0, 0.25, 0.5, 0.75]. range(n) counts from 0 to n - 1. A step that
+// points away from b gives an empty list, so use a negative step to count down.
+function range(a, b, step) {
+  if (b === undefined) {
+    b = a;
+    a = 0;
+  }
+  step = step == null ? 1 : step;
+  if (!isFinite(a) || !isFinite(b) || !isFinite(step)) {
+    throw new Error('range: a, b and step must be finite numbers');
+  }
+  if (step === 0) throw new Error('range: step must not be 0');
+  // The tiny offset keeps float noise (0.3 / 0.1 is 2.9999999999999996) from adding a value.
+  var count = Math.ceil((b - a) / step - 1e-9);
+  if (!(count > 0)) return [];
+  if (count > 1000000) throw new Error('range: too many values (' + count + ')');
+  var out = [];
+  // a + i * step avoids the drift of repeated addition; toPrecision trims 0.30000000000000004.
+  for (var i = 0; i < count; i++) out.push(Number((a + i * step).toPrecision(15)));
+  return out;
+}
+
+// n evenly spaced numbers from a to b, both included: linspace(0, 1, 5) is
+// [0, 0.25, 0.5, 0.75, 1]. Handy for sampling a curve.
+function linspace(a, b, n) {
+  if (!isFinite(a) || !isFinite(b) || !isFinite(n)) {
+    throw new Error('linspace: a, b and n must be finite numbers');
+  }
+  n = Math.floor(n);
+  if (!(n > 0)) return [];
+  if (n > 1000000) throw new Error('linspace: too many values (' + n + ')');
+  if (n === 1) return [a];
+  var out = [];
+  for (var i = 0; i < n - 1; i++) out.push(a + ((b - a) * i) / (n - 1));
+  out.push(b);
+  return out;
+}
+
+// The rectangle around a list of [x, y] points as [x, y, w, h], with x, y the bottom-left
+// corner, ready for fit(...bounds(points)). Points that are not finite are ignored; an empty
+// list gives [0, 0, 0, 0].
+function bounds(points) {
+  var minX = Infinity;
+  var minY = Infinity;
+  var maxX = -Infinity;
+  var maxY = -Infinity;
+  for (var i = 0; i < points.length; i++) {
+    var p = points[i];
+    if (!p || !isFinite(p[0]) || !isFinite(p[1])) continue;
+    if (p[0] < minX) minX = p[0];
+    if (p[0] > maxX) maxX = p[0];
+    if (p[1] < minY) minY = p[1];
+    if (p[1] > maxY) maxY = p[1];
+  }
+  if (minX === Infinity) return [0, 0, 0, 0];
+  return [minX, minY, maxX - minX, maxY - minY];
+}
+
+// The list rescaled so its smallest number becomes 0 and its largest 1. A list whose numbers
+// are all equal becomes all 0, and entries that are not finite numbers become NaN.
+function normalize(list) {
+  var lo = Infinity;
+  var hi = -Infinity;
+  var i, v;
+  for (i = 0; i < list.length; i++) {
+    v = list[i];
+    if (typeof v !== 'number' || !isFinite(v)) continue;
+    if (v < lo) lo = v;
+    if (v > hi) hi = v;
+  }
+  var span = hi - lo;
+  var out = [];
+  for (i = 0; i < list.length; i++) {
+    v = list[i];
+    out.push(typeof v === 'number' && isFinite(v) ? (span > 0 ? (v - lo) / span : 0) : NaN);
+  }
+  return out;
+}
+
+// The value t of the way from a to b: lerp(10, 20, 0.5) is 15. t is not clamped, so values
+// outside 0..1 extrapolate.
+function lerp(a, b, t) {
+  return a + (b - a) * t;
+}
+
 // Function t (0..1) => color for a ramp argument: a built-in name or your own function.
 function rampFn(ramp) {
   if (typeof ramp === 'function') return ramp;
@@ -615,13 +712,21 @@ function px(n) {
 // with a small margin. It applies once per run and again only when the arguments
 // change, so the user can still pan and zoom afterwards.
 var lastFit = '';
+var pendingFit = null;   // a fit() that ran before the page had any size
 function fit(x, y, w, h) {
   if (!isFinite(x) || !isFinite(y) || !isFinite(w) || !isFinite(h) || !(w > 0) || !(h > 0)) return;
+  var vw = window.innerWidth;
+  var vh = window.innerHeight;
+  // Right after the page loads the frame can still be unmeasured (0 x 0). Framing against that
+  // would zoom way out, so wait for the resize event that reports the real size.
+  if (vw < 2 || vh < 2) {
+    pendingFit = [x, y, w, h];
+    return;
+  }
+  pendingFit = null;
   var id = [x, y, w, h].join(',');
   if (id === lastFit) return;
   lastFit = id;
-  var vw = window.innerWidth;
-  var vh = window.innerHeight;
   var zoom = Math.min(100, Math.max(0.01, Math.min(vw / w, vh / h) * 0.9));
   cam.zoom = zoom;
   cam.x = vw / 2 - (x + w / 2) * zoom;
@@ -1060,7 +1165,8 @@ var scopeNames = [
   'plotPolar', 'toggle', 'key', 'fit', 'curve', 'px',
   'field', 'heat',
   'hover', 'trail', 'contour',
-  'select', 'scatter', 'bars', 'hist', 'log'
+  'select', 'scatter', 'bars', 'hist', 'log',
+  'range', 'linspace', 'bounds', 'normalize', 'lerp'
 ];
 var scopeValues = [
   canvas, ctx, view, mouse, frame, animate,
@@ -1069,7 +1175,8 @@ var scopeValues = [
   plotPolar, toggle, key, fit, curve, px,
   field, heat,
   hover, trail, contour,
-  select, scatter, bars, hist, log
+  select, scatter, bars, hist, log,
+  range, linspace, bounds, normalize, lerp
 ];
 Object.getOwnPropertyNames(Math).forEach(function (name) {
   // Helpers win over Math members of the same name (log prints; use Math.log for ln).
@@ -1142,7 +1249,10 @@ function tick(now) {
 
 window.addEventListener('error', function (e) { report(e.error || e.message); });
 window.addEventListener('unhandledrejection', function (e) { report(e.reason); });
-window.addEventListener('resize', resizeCanvas);
+window.addEventListener('resize', function () {
+  resizeCanvas();
+  if (pendingFit) fit(pendingFit[0], pendingFit[1], pendingFit[2], pendingFit[3]);
+});
 
 window.addEventListener('message', function (e) {
   var d = e.data;
@@ -1319,9 +1429,13 @@ export function buildPreviewDoc(code: string, options: PreviewDocOptions = {}): 
 	const safeCode = JSON.stringify(code).replace(/</g, '\\u003c');
 	const { standalone = false, zoom = 1, sliders = {} } = options;
 
+	// Exported pages carry their own logo, so they need no files next to them.
+	const dataUri = (svg: string) => 'data:image/svg+xml,' + encodeURIComponent(svg.trim());
+
 	const head = standalone
 		? `<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>vexel sketch</title>`
+<title>vexel sketch</title>
+<link rel="icon" href="${dataUri(faviconSvg)}">`
 		: '';
 	const background = standalone ? '#1b1d25' : 'transparent';
 	const extraStyle = standalone
@@ -1332,10 +1446,17 @@ export function buildPreviewDoc(code: string, options: PreviewDocOptions = {}): 
   #readout { display: none; position: fixed; left: 8px; bottom: 8px; gap: 12px; padding: 3px 8px;
     pointer-events: none; color: #d7dae0; background: rgba(21, 23, 30, 0.8); border: 1px solid #2c303c;
     border-radius: 4px; font: 11px/1.3 ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-    font-variant-numeric: tabular-nums; }`
+    font-variant-numeric: tabular-nums; }
+  #brand { position: fixed; right: 8px; bottom: 6px; display: flex; align-items: center; gap: 8px;
+    padding: 5px 8px; border-radius: 8px; opacity: 0.65; color: #d7dae0; text-decoration: none;
+    font: 600 14px/1 system-ui, -apple-system, 'Segoe UI', sans-serif; letter-spacing: 0.08em;
+    text-transform: lowercase; }
+  #brand:hover { opacity: 1; background: rgba(255, 255, 255, 0.08); }
+  #brand img { display: block; width: 24px; height: 24px; }`
 		: '';
 	const extraBody = standalone
-			? '\n<pre id="err"></pre>\n<div id="readout"><span id="rx"></span><span id="ry"></span></div>'
+			? '\n<pre id="err"></pre>\n<div id="readout"><span id="rx"></span><span id="ry"></span></div>' +
+				`\n<a id="brand" href="${PROJECT_URL}" target="_blank" rel="noopener noreferrer" title="Made with Vexel"><img src="${dataUri(logoSvg)}" alt=""><span>Vexel</span></a>`
 			: '';
 	const standaloneVar = standalone ? `<script>var STANDALONE = { zoom: ${Number(zoom) || 1}, sliders: ${JSON.stringify(sliders).replace(/</g, '\\u003c')} };<\/script>\n` : '';
 

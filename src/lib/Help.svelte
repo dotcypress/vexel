@@ -1,5 +1,17 @@
 <script lang="ts">
-	let { open = $bindable(false) }: { open?: boolean } = $props();
+	let {
+		open = $bindable(false),
+		onload
+	}: {
+		open?: boolean;
+		/** Replace the editor's code with an example. */
+		onload: (code: string, title: string) => void;
+	} = $props();
+
+	function load(code: string, title: string) {
+		onload(code, title);
+		open = false;
+	}
 
 	let dialog: HTMLDialogElement;
 
@@ -19,7 +31,7 @@
 
 	const quickStart = [
 		'animate((t) => {',
-		"  clear('#07080d')",
+		"  clear('#282c34')",
 		'  grid()',
 		'  axes()',
 		'  circle(cos(t) * 60, sin(t) * 60, 10, palette(0))',
@@ -33,7 +45,7 @@
 				{
 					signature: 'clear(color?)',
 					text: 'Fill the whole canvas with a color, or make it transparent if omitted.',
-					example: "clear('#07080d')"
+					example: "clear('#282c34')"
 				},
 				{
 					signature: 'grid(step?, color?, major?)',
@@ -137,7 +149,7 @@
 				{
 					signature: 'scatter(list, size?, ramp?)',
 					text: "Dots from [[x, y, value], ...], colored by value (0 to 1, clamped) with the same ramps as heat. size is the diameter (default 4).",
-					example: "scatter(Array.from({ length: 200 }, (_, i) => [i - 100, 40 * sin(i / 10), i / 200]), 6, 'turbo')"
+					example: "scatter(range(200).map((i) => [i - 100, 40 * sin(i / 10), i / 200]), 6, 'turbo')"
 				},
 				{
 					signature: 'bars(list, width?, color?)',
@@ -147,7 +159,7 @@
 				{
 					signature: 'hist(list, bins?)',
 					text: 'Histogram of a list of numbers in bins (default 10) between their smallest and largest value. x is the data value and a bar is as tall as its count, in world units. Returns the counts.',
-					example: 'hist(Array.from({ length: 500 }, () => 100 * (random() + random() + random()) / 3), 20)'
+					example: 'hist(range(500).map(() => 100 * (random() + random() + random()) / 3), 20)'
 				},
 				{
 					signature: 'field(f, step?, color?)',
@@ -178,6 +190,37 @@
 					signature: 'rgb(r, g, b, a?)',
 					text: 'Color string. r, g, b are 0-255, a is 0-1 (default 1).',
 					example: 'rect(0, 0, 50, 50, rgb(255, 120, 0, 0.5))'
+				}
+			]
+		},
+		{
+			title: 'Numbers and ranges',
+			note: 'range excludes its end (like Python) while linspace includes both ends (like NumPy).',
+			helpers: [
+				{
+					signature: 'range(a, b, step?)',
+					text: 'Numbers from a up to, but not including, b in steps of step (default 1). range(n) counts from 0 to n - 1. A negative step counts down; a step pointing away from b gives an empty list.',
+					example: 'points(range(-100, 101, 20).map((x) => [x, x * x / 100]), 6)'
+				},
+				{
+					signature: 'linspace(a, b, n)',
+					text: 'n evenly spaced numbers from a to b, both included. Handy for sampling a curve.',
+					example: 'polyline(linspace(0, PI * 2, 60).map((a) => [cos(a) * 50, sin(a) * 50]), palette(2), 2, true)'
+				},
+				{
+					signature: 'bounds(points)',
+					text: 'The rectangle around [[x, y], ...] as [x, y, w, h], with x, y the bottom-left corner. Pass it straight to fit. Points that are not finite are ignored; an empty list gives [0, 0, 0, 0].',
+					example: "const pts = range(30).map((i) => [i * 8, 40 * sin(i / 4)])\npoints(pts, 6, palette(1))\nfit(...bounds(pts))"
+				},
+				{
+					signature: 'normalize(list)',
+					text: 'The list rescaled so its smallest number becomes 0 and its largest 1. All-equal lists become all 0, and entries that are not finite numbers become NaN. Good for scatter and heat values.',
+					example: "const ys = range(40).map((i) => sin(i / 5) * 30 + i)\nscatter(ys.map((y, i) => [i * 5, y, normalize(ys)[i]]), 6)"
+				},
+				{
+					signature: 'lerp(a, b, t)',
+					text: 'The value t of the way from a to b: lerp(10, 20, 0.5) is 15. t is not clamped, so values outside 0..1 extrapolate.',
+					example: "circle(lerp(-80, 80, 0.25), 0, 20, hsl(lerp(200, 320, 0.25), 80, 60))"
 				}
 			]
 		},
@@ -264,7 +307,10 @@
 										The canvas keeps what <code>fn</code> drew between calls, and moving the view or changing a control calls it right away.
 					Without <code>animate</code>, the code is re-run whenever the view changes.
 				</p>
-				<pre class="example"><code>{quickStart}</code></pre>
+				<div class="example-wrap">
+					<pre class="example"><code>{quickStart}</code></pre>
+					<button class="load" onclick={() => load(quickStart, 'quick start')} title="Replace the editor's code with this example">Load</button>
+				</div>
 				<p>
 					The <strong>Examples</strong> menu in the header loads ready-made sketches: shapes, function plots, a phase
 					portrait, the Mandelbrot set, charts, interactive toys and more. Their comments explain the helpers they use.
@@ -312,7 +358,16 @@
 						<div class="entry">
 							<code class="signature">{helper.signature}</code>
 							<p class="description">{helper.text}</p>
-							<pre class="example"><code>{helper.example}</code></pre>
+							<div class="example-wrap">
+								<pre class="example"><code>{helper.example}</code></pre>
+								<button
+									class="load"
+									onclick={() => load(helper.example, helper.signature)}
+									title="Replace the editor's code with this example"
+								>
+									Load
+								</button>
+							</div>
 						</div>
 					{/each}
 				{/each}
@@ -423,13 +478,35 @@
 		margin: 2px 0 4px;
 		color: var(--muted);
 	}
-	.example {
+	.example-wrap {
+		position: relative;
 		margin: 4px 0 0;
-		padding: 6px 10px;
+	}
+	.example {
+		margin: 0;
+		padding: 6px 56px 6px 10px;
 		overflow-x: auto;
 		background: var(--bg);
 		border: 1px solid var(--border);
 		border-radius: 4px;
+	}
+	.load {
+		position: absolute;
+		top: 4px;
+		right: 4px;
+		padding: 1px 8px;
+		color: var(--muted);
+		background: var(--panel);
+		border: 1px solid var(--border);
+		border-radius: 4px;
+		font: inherit;
+		font-size: 11px;
+		cursor: pointer;
+	}
+	.load:hover {
+		color: #fff;
+		background: var(--accent);
+		border-color: var(--accent);
 	}
 	.example code {
 		color: var(--text);

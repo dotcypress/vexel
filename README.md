@@ -26,11 +26,11 @@ To deploy, pick an adapter in `vite.config.ts` (it is `adapter-auto` for now); a
 - The sketch runs in a sandboxed iframe. Errors show below the editor, and your code is saved in the browser automatically.
 - **Export HTML** (above the preview) downloads a self-contained page with its own pan, zoom, sliders and helpers.
 - The **Examples** menu loads ready-made sketches (shapes, plots, a phase portrait, the Mandelbrot set, charts, interactive toys). Their comments explain the helpers they use.
-- The in-app **Help** has every helper with an example, and `Ctrl + Space` autocompletes them.
+- The in-app **Help** has every helper with an example and a **Load** button that puts it in the editor, and `Ctrl + Space` autocompletes them.
 
 ```js
 animate((t) => {
-  clear('#07080d')
+  clear('#282c34')
   grid()
   axes()
   circle(cos(t) * 60, sin(t) * 60, 10, palette(0))
@@ -99,6 +99,16 @@ Ramps for `heat` and `scatter`: `'viridis'` (default), `'magma'`, `'turbo'`, `'g
 | `palette(i)` | The i-th color of a 16-color palette (wraps around). |
 | `hsl(h, s, l, a?)` | Color string: `h` in degrees, `s` and `l` in 0-100. |
 | `rgb(r, g, b, a?)` | Color string: `r, g, b` in 0-255. |
+
+**Numbers and ranges**
+
+| Helper | Description |
+|---|---|
+| `range(a, b, step?)` | Numbers from `a` up to, not including, `b`. `range(n)` counts from 0 to `n - 1`. |
+| `linspace(a, b, n)` | `n` evenly spaced numbers from `a` to `b`, both included. |
+| `bounds(points)` | `[x, y, w, h]` around a list of `[x, y]` points, for `fit(...bounds(points))`. |
+| `normalize(list)` | The list rescaled to 0..1. |
+| `lerp(a, b, t)` | The value `t` of the way from `a` to `b`. |
 
 **Interaction and overlays**
 

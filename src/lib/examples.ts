@@ -18,8 +18,7 @@ export const EXAMPLES: Example[] = [
 		title: 'Sunflower',
 		group: 'Basics',
 		description: 'animate, slider, hsl, point: dots on the golden angle.',
-		// The default sketch has no fit(), so frame the view when loading it as an example.
-		code: 'fit(-340, -340, 680, 680)\n\n' + DEFAULT_CODE
+		code: DEFAULT_CODE
 	},
 	{
 		id: 'shapes',
@@ -27,7 +26,7 @@ export const EXAMPLES: Example[] = [
 		group: 'Basics',
 		description: 'Every drawing helper once, plus colors and px().',
 		code: `// Shapes gallery: every drawing helper once. Y points up and (0, 0) is the center.
-clear('#07080d')
+clear('#282c34')
 grid()
 axes()
 
@@ -58,7 +57,7 @@ const amp = slider('amplitude', 0, 100, 50)
 const freq = slider('frequency', 5, 100, 30, 1)   // the last number is the step
 const showCos = toggle('cosine', true)
 
-clear('#07080d')
+clear('#282c34')
 grid(10, null, 50)                                // minor every 10, major every 50
 axes()
 
@@ -80,7 +79,7 @@ fit(-300, -150, 600, 300)
 const k = slider('k', 1, 12, 5, 1)
 const R = slider('radius', 20, 150, 100)
 
-clear('#07080d')
+clear('#282c34')
 grid(25, null, 100)
 axes()
 plotPolar((a) => R * cos(k * a), palette(5), px(2.5))
@@ -100,15 +99,12 @@ animate((t) => {
   const a = slider('a', 1, 9, 3, 1)
   const b = slider('b', 1, 9, 2, 1)
 
-  clear('#07080d')
+  clear('#282c34')
   grid(20, null, 100)
   axes()
 
-  const pts = []
-  for (let i = 0; i <= 400; i++) {
-    const s = (i / 400) * PI * 2
-    pts.push([120 * sin(a * s), 120 * sin(b * s + 1)])
-  }
+  // linspace(0, PI * 2, 401) is 401 evenly spaced angles, both ends included
+  const pts = linspace(0, PI * 2, 401).map((s) => [120 * sin(a * s), 120 * sin(b * s + 1)])
   polyline(pts, 'rgba(255, 255, 255, 0.15)', px(1))   // the full curve, faint
 
   const x = 120 * sin(a * t)
@@ -136,7 +132,7 @@ fit(-6.5 * S, -4 * S, 13 * S, 8 * S)
 animate((t, dt) => {
   const c = slider('damping', 0, 1, 0.2, 0.01)
 
-  clear('#07080d')
+  clear('#282c34')
   grid(S / 2, null, S)
   axes()
 
@@ -175,7 +171,7 @@ fit(-300, -200, 600, 400)
 animate((t) => {
   const step = slider('spacing', 15, 60, 30, 5)
 
-  clear('#07080d')
+  clear('#282c34')
   axes('rgba(255, 255, 255, 0.25)')
   field((x, y) => [sin(y / 50 + t) * 30, cos(x / 50 - t) * 30], step, palette(5))
 })
@@ -192,7 +188,7 @@ animate((t) => {
 const ramp = select('ramp', ['magma', 'turbo', 'viridis', 'gray'])
 const maxIter = slider('iterations', 10, 150, 60, 1)
 
-clear('#07080d')
+clear('#282c34')
 heat((x, y) => {
   const cr = x / 200 - 0.5   // 200 world units per unit of the complex plane
   const ci = y / 200
@@ -228,7 +224,7 @@ animate((t) => {
   const f = (x, y) =>
     blobs.reduce((sum, [bx, by, r]) => sum + (r * r) / ((x - bx) ** 2 + (y - by) ** 2 + 1), 0)
 
-  clear('#07080d')
+  clear('#282c34')
   heat((x, y) => min(1, f(x, y) / 3), 'magma')   // draw heat first: it is opaque
   contour(f, level, 'white', px(2))
 })
@@ -251,22 +247,22 @@ for (let r = 0; r < rows; r++) {
     data.push([c, r, round(50 + 40 * sin(c / 2.2) * cos(r / 1.7) + 10 * sin(c * r))])
   }
 }
-const lo = min(...data.map((d) => d[2]))
-const hi = max(...data.map((d) => d[2]))
+const shade = normalize(data.map((d) => d[2]))            // every value rescaled to 0..1
 
-clear('#07080d')
+clear('#282c34')
 fit(0, 0, cols * cell, rows * cell)
 
-for (const [c, r, v] of data) {
-  const t = (v - lo) / (hi - lo || 1)                     // 0..1
+data.forEach(([c, r, v], i) => {
+  const t = shade[i]
   const x = c * cell
   const y = r * cell
-  rect(x, y, cell - 2, cell - 2, hsl(240 - 240 * t, 70, 25 + 30 * t))
+  // lerp(a, b, t) slides from a to b: blue to red here, and darker to lighter
+  rect(x, y, cell - 2, cell - 2, hsl(lerp(240, 0, t), 70, lerp(25, 55, t)))
   if (hover(x + cell / 2, y + cell / 2, cell / 2)) {
     rect(x, y, cell - 2, cell - 2, false, 'white', px(2))
     hud('column ' + c + ', row ' + r, 'value ' + v)
   }
-}
+})
 `
 	},
 	{
@@ -280,10 +276,10 @@ let seed = 12345
 const rand01 = () => (seed = (seed * 16807) % 2147483647) / 2147483647
 const gauss = () => (rand01() + rand01() + rand01() + rand01() - 2) * 1.7
 
-const samples = Array.from({ length: 600 }, () => 100 + 30 * gauss())
+const samples = range(600).map(() => 100 + 30 * gauss())   // range(600) is [0, 1, ... 599]
 const bins = slider('bins', 5, 40, 20, 1)
 
-clear('#07080d')
+clear('#282c34')
 grid(10, null, 50)
 axes()
 
@@ -317,11 +313,11 @@ for (let i = 0; i < n; i++) {
   pts.push([cos(a) * r, sin(a) * r, i / n])
 }
 
-clear('#07080d')
+clear('#282c34')
 grid(50, null, 100)
 axes()
 scatter(pts, 5, ramp)
-fit(-320, -320, 640, 640)
+fit(...bounds(pts))                      // frame the points; bounds() returns [x, y, w, h]
 `
 	},
 	{
@@ -345,7 +341,7 @@ animate((t, dt) => {
   x += dx * speed * min(dt, 0.1)
   y += dy * speed * min(dt, 0.1)
 
-  clear('#07080d')
+  clear('#282c34')
   grid(20, null, 100)
   axes()
   if (showTrail) trail('me', x, y, 200, palette(1))
@@ -377,7 +373,7 @@ animate(() => {
     current = null
   }
 
-  clear('#07080d')
+  clear('#282c34')
   grid(20, null, 100)
   axes()
   strokes.forEach((stroke, i) => polyline(stroke, palette(i), px(3)))

@@ -204,6 +204,36 @@ export const SKETCH: Completion[] = [
 		'...values',
 		'Prints values to the console panel under the editor, separated by spaces. Objects and arrays are shown as JSON.',
 		'log(${})'
+	),
+	fn(
+		'range',
+		'a, b, step?',
+		'Numbers from a up to, but not including, b in steps of step (default 1). range(n) counts from 0 to n - 1. Use a negative step to count down.',
+		'range(${a}, ${b})'
+	),
+	fn(
+		'linspace',
+		'a, b, n',
+		'n evenly spaced numbers from a to b, both included. Handy for sampling a curve.',
+		'linspace(${a}, ${b}, ${n})'
+	),
+	fn(
+		'bounds',
+		'points',
+		'The rectangle around [[x, y], ...] as [x, y, w, h] (x, y is the bottom-left corner), ready for fit(...bounds(points)).',
+		'bounds(${points})'
+	),
+	fn(
+		'normalize',
+		'list',
+		'The list rescaled so its smallest number becomes 0 and its largest 1. Good for scatter and heat values.',
+		'normalize(${list})'
+	),
+	fn(
+		'lerp',
+		'a, b, t',
+		'The value t of the way from a to b: lerp(10, 20, 0.5) is 15. t is not clamped.',
+		'lerp(${a}, ${b}, ${t})'
 	)
 ];
 

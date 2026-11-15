@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
-	import { buildPreviewDoc } from './runtime';
+	import { buildPreviewDoc, PROJECT_URL } from './runtime';
 	import type { LogLevel } from './Console.svelte';
 
 	let {
@@ -239,11 +239,34 @@
 	}
 
 
+	// The viewport changes size when the page restores the saved editor/preview split after
+	// mounting, when the divider is dragged, or when the window is resized. Shift the camera by
+	// half the change so the world point at the center stays at the center; otherwise the origin
+	// can end up outside the visible area.
+	let viewportSize = { w: 0, h: 0 };
+
+	function onViewportResize(w: number, h: number) {
+		if (viewportSize.w > 0 || viewportSize.h > 0) {
+			panX += (w - viewportSize.w) / 2;
+			panY += (h - viewportSize.h) / 2;
+		}
+		viewportSize = { w, h };
+	}
+
 	onMount(() => {
 		viewport.addEventListener('wheel', onWheel, { passive: false });
 		window.addEventListener('message', onMessage);
 		resetView();
+		// Remember the size resetView() centered on, so a resize that happens right after
+		// mounting (the split being restored) is compensated for too.
+		const r = viewport.getBoundingClientRect();
+		viewportSize = { w: r.width, h: r.height };
+		const observer = new ResizeObserver(([entry]) => {
+			onViewportResize(entry.contentRect.width, entry.contentRect.height);
+		});
+		observer.observe(viewport);
 		return () => {
+			observer.disconnect();
 			viewport.removeEventListener('wheel', onWheel);
 			window.removeEventListener('message', onMessage);
 		};
@@ -299,7 +322,16 @@
 	</div>
 
 	<div class="hint">
-		Wheel / middle or right drag / Space+drag to pan · Pinch or Ctrl+wheel to zoom · 0 reset
+		<span>Wheel / middle or right drag / Space+drag to pan · Pinch or Ctrl+wheel to zoom · 0 reset</span>
+		<a class="source" href={PROJECT_URL} target="_blank" rel="noopener noreferrer" title="Source code on GitHub">
+			<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+				<path
+					fill="currentColor"
+					d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"
+				/>
+			</svg>
+			Source
+		</a>
 	</div>
 </div>
 
@@ -387,10 +419,35 @@
 	}
 
 	.hint {
-		padding: 4px 12px;
+		box-sizing: border-box;
+		height: var(--bottom-bar-height);
+		flex: none;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		padding: 0 12px;
+		overflow: hidden;
 		color: var(--muted);
 		background: var(--panel);
 		border-top: 1px solid var(--border);
 		font-size: 11px;
+	}
+	.hint span {
+		min-width: 0;
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+	}
+	.source {
+		display: inline-flex;
+		align-items: center;
+		gap: 5px;
+		flex: none;
+		color: inherit;
+		text-decoration: none;
+	}
+	.source:hover {
+		color: var(--text);
 	}
 </style>

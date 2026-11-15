@@ -82,10 +82,13 @@
 		border-top: 1px solid var(--border);
 	}
 	.bar {
+		box-sizing: border-box;
+		/* The panel's own 1px top border brings it to the shared bar height. */
+		height: calc(var(--bottom-bar-height) - 1px);
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding: 2px 8px;
+		padding: 0 8px;
 	}
 	button {
 		padding: 2px 6px;
