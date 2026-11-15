@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { highlight } from './highlight';
+
 	let {
 		open = $bindable(false),
 		onload
@@ -129,7 +131,8 @@
 		},
 		{
 			title: 'Plots',
-			note: 'heat paints opaque cells over the whole view, so call it right after clear() and draw everything else on top.',
+			note: "heat paints opaque cells over the whole view, so call it right after clear() and draw everything else on top. Ramps for heat and scatter: viridis (default), magma, inferno, plasma, cividis (color-blind safe), turbo, hot and gray for values from low to high; coolwarm for values on both sides of a middle (0.5 is neutral); vexel, the logo gradient. Or pass a function t => color.",
+
 			helpers: [
 				{
 					signature: 'plot(f, color?, lineWidth?, from?, to?)',
@@ -148,7 +151,7 @@
 				},
 				{
 					signature: 'scatter(list, size?, ramp?)',
-					text: "Dots from [[x, y, value], ...], colored by value (0 to 1, clamped) with the same ramps as heat. size is the diameter (default 4).",
+					text: "Dots from [[x, y, value], ...], colored by value (0 to 1, clamped) with a ramp, as in heat. size is the diameter (default 4).",
 					example: "scatter(range(200).map((i) => [i - 100, 40 * sin(i / 10), i / 200]), 6, 'turbo')"
 				},
 				{
@@ -168,7 +171,7 @@
 				},
 				{
 					signature: 'heat(f, ramp?)',
-					text: "Colors the view by f(x, y), which returns a number from 0 to 1 (clamped). ramp is 'viridis' (default), 'magma', 'turbo', 'gray' or a function t => color.",
+					text: "Colors the view by f(x, y), which returns a number from 0 to 1 (clamped). ramp is the name of a colormap ('viridis' by default) or a function t => color; the Plots note above lists the names.",
 					example: "heat((x, y) => 0.5 + 0.5 * sin(hypot(x, y) / 15), 'magma')"
 				}
 			]
@@ -241,7 +244,7 @@
 				{
 					signature: 'select(name, options, value?)',
 					text: 'Adds a chooser next to the sliders and returns the chosen option, which can be any value. Click its left half to go back and its right half to go forward. value is the initial option (default: the first).',
-					example: "const ramp = select('ramp', ['viridis', 'magma', 'turbo'])\nheat((x, y) => 0.5 + 0.5 * sin(x / 20), ramp)"
+					example: "const ramp = select('ramp', ['viridis', 'plasma', 'coolwarm'])\nheat((x, y) => 0.5 + 0.5 * sin(x / 20), ramp)"
 				},
 				{
 					signature: 'key(name)',
@@ -285,6 +288,12 @@
 	];
 </script>
 
+{#snippet loadIcon()}
+	<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+		<path fill="currentColor" d="M4 2.2v11.6a.6.6 0 0 0 .92.5l9-5.8a.6.6 0 0 0 0-1l-9-5.8A.6.6 0 0 0 4 2.2z" />
+	</svg>
+{/snippet}
+
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
 <dialog bind:this={dialog} onclose={() => (open = false)} onclick={onBackdropClick}>
 	<div class="panel">
@@ -308,8 +317,15 @@
 					Without <code>animate</code>, the code is re-run whenever the view changes.
 				</p>
 				<div class="example-wrap">
-					<pre class="example"><code>{quickStart}</code></pre>
-					<button class="load" onclick={() => load(quickStart, 'quick start')} title="Replace the editor's code with this example">Load</button>
+					<pre class="example"><code>{@html highlight(quickStart)}</code></pre>
+					<button
+						class="load"
+						onclick={() => load(quickStart, 'quick start')}
+						title="Load into the editor and run"
+						aria-label="Load this example into the editor and run it"
+					>
+						{@render loadIcon()}
+					</button>
 				</div>
 				<p>
 					The <strong>Examples</strong> menu in the header loads ready-made sketches: shapes, function plots, a phase
@@ -359,13 +375,14 @@
 							<code class="signature">{helper.signature}</code>
 							<p class="description">{helper.text}</p>
 							<div class="example-wrap">
-								<pre class="example"><code>{helper.example}</code></pre>
+								<pre class="example"><code>{@html highlight(helper.example)}</code></pre>
 								<button
 									class="load"
 									onclick={() => load(helper.example, helper.signature)}
-									title="Replace the editor's code with this example"
+									title="Load into the editor and run"
+									aria-label="Load the {helper.signature} example into the editor and run it"
 								>
-									Load
+									{@render loadIcon()}
 								</button>
 							</div>
 						</div>
@@ -484,7 +501,7 @@
 	}
 	.example {
 		margin: 0;
-		padding: 6px 56px 6px 10px;
+		padding: 6px 40px 6px 10px;
 		overflow-x: auto;
 		background: var(--bg);
 		border: 1px solid var(--border);
@@ -492,15 +509,18 @@
 	}
 	.load {
 		position: absolute;
-		top: 4px;
-		right: 4px;
-		padding: 1px 8px;
+		top: 5px;
+		right: 6px;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 26px;
+		height: 22px;
+		padding: 0;
 		color: var(--muted);
 		background: var(--panel);
 		border: 1px solid var(--border);
 		border-radius: 4px;
-		font: inherit;
-		font-size: 11px;
 		cursor: pointer;
 	}
 	.load:hover {
@@ -511,6 +531,27 @@
 	.example code {
 		color: var(--text);
 		white-space: pre;
+	}
+	/* Colors match the editor's One Dark theme. */
+	.example :global(.tok-comment) {
+		color: #7d8799;
+		font-style: italic;
+	}
+	.example :global(.tok-string) {
+		color: #98c379;
+	}
+	.example :global(.tok-number),
+	.example :global(.tok-constant) {
+		color: #d19a66;
+	}
+	.example :global(.tok-keyword) {
+		color: #c678dd;
+	}
+	.example :global(.tok-function) {
+		color: #61afef;
+	}
+	.example :global(.tok-operator) {
+		color: #56b6c2;
 	}
 	code,
 	kbd {

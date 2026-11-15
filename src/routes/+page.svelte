@@ -95,11 +95,6 @@
 		if (example) loadCode(example.code, example.title);
 	}
 
-	function reset() {
-		if (!confirm('Replace the current code with the default example?')) return;
-		code = DEFAULT_CODE;
-		run();
-	}
 
 	function startResize(e: PointerEvent) {
 		resizing = true;
@@ -147,7 +142,7 @@
 					{/each}
 				</select>
 				<button onclick={() => (helpOpen = true)} title="API reference and shortcuts">Help</button>
-				<button onclick={reset}>Reset</button>
+
 				<button class="primary" onclick={run} title="Cmd/Ctrl+Enter">Run ▶</button>
 			</div>
 		</header>

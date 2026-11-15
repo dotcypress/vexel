@@ -353,12 +353,21 @@ function field(f, step, color) {
   ctx.restore();
 }
 
-// Built-in colormaps for heat(), as evenly spaced color stops.
+// Built-in colormaps for heat() and scatter(), as evenly spaced color stops.
+// Sequential: viridis, magma, inferno, plasma, cividis (color-blind safe), turbo, hot, gray.
+// Diverging: coolwarm, with a neutral middle for values on both sides of zero.
+// Brand: vexel, the logo gradient.
 var RAMPS = Object.create(null);
 RAMPS.viridis = ['#440154', '#3b528b', '#21908d', '#5dc863', '#fde725'];
 RAMPS.magma = ['#000004', '#51127c', '#b73779', '#fc8761', '#fcfdbf'];
+RAMPS.inferno = ['#000004', '#420a68', '#932667', '#dd513a', '#fca50a', '#fcffa4'];
+RAMPS.plasma = ['#0d0887', '#6a00a8', '#b12a90', '#e16462', '#fca636', '#f0f921'];
+RAMPS.cividis = ['#00204d', '#31446b', '#666970', '#958f78', '#cbba69', '#ffea46'];
 RAMPS.turbo = ['#30123b', '#4777ef', '#1ac7c2', '#a2fc3c', '#fabb38', '#e4460a', '#7a0403'];
+RAMPS.hot = ['#000000', '#b30000', '#ff7f00', '#ffe135', '#ffffff'];
+RAMPS.coolwarm = ['#3b4cc0', '#7b9ff9', '#c0d4f5', '#f2cbb7', '#ee8468', '#b40426'];
 RAMPS.gray = ['#000000', '#ffffff'];
+RAMPS.vexel = ['#5bc7f0', '#5b6cf0', '#8f5bf0', '#f05ba6'];
 var rampLuts = Object.create(null);
 
 // 256 precomputed CSS colors for a built-in colormap.
@@ -366,7 +375,7 @@ function rampLut(name) {
   if (rampLuts[name]) return rampLuts[name];
   var stops = RAMPS[name];
   if (!stops) {
-    throw new Error("unknown ramp '" + name + "' (use viridis, magma, turbo, gray or a function)");
+    throw new Error("unknown ramp '" + name + "' (use " + Object.keys(RAMPS).join(', ') + ' or a function)');
   }
   var rgbs = stops.map(function (s) {
     return [parseInt(s.substr(1, 2), 16), parseInt(s.substr(3, 2), 16), parseInt(s.substr(5, 2), 16)];
@@ -389,7 +398,7 @@ function rampLut(name) {
 }
 
 // Colors the whole view by f(x, y), which returns a number from 0 to 1 (clamped).
-// ramp is 'viridis' (default), 'magma', 'turbo', 'gray' or a function t => color.
+// ramp is the name of a built-in colormap ('viridis' by default) or a function t => color.
 // Cells are a few screen pixels wide; the result is opaque, so draw it first.
 function heat(f, ramp) {
   var lut = null;

@@ -154,7 +154,7 @@ export const SKETCH: Completion[] = [
 	fn(
 		'heat',
 		'f, ramp?',
-		"Colors the view by f(x, y), a number from 0 to 1. ramp: 'viridis' (default), 'magma', 'turbo', 'gray' or a function t => color. Opaque: draw it first.",
+		"Colors the view by f(x, y), a number from 0 to 1. ramp: a colormap name ('viridis' default, 'magma', 'inferno', 'plasma', 'cividis', 'turbo', 'hot', 'coolwarm', 'gray', 'vexel') or a function t => color. Opaque: draw it first.",
 		'heat((x, y) => ${})'
 	),
 	fn(
@@ -184,7 +184,7 @@ export const SKETCH: Completion[] = [
 	fn(
 		'scatter',
 		'list, size?, ramp?',
-		"Dots from [[x, y, value], ...], colored by value (0 to 1). ramp: 'viridis' (default), 'magma', 'turbo', 'gray' or a function t => color.",
+		"Dots from [[x, y, value], ...], colored by value (0 to 1). ramp: a colormap name ('viridis' default, 'magma', 'inferno', 'plasma', 'cividis', 'turbo', 'hot', 'coolwarm', 'gray', 'vexel') or a function t => color.",
 		'scatter(${list})'
 	),
 	fn(

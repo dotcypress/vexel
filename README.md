@@ -17,8 +17,6 @@ npm run check     # type-check
 
 Vexel is an installable PWA. When served over HTTPS (or from `localhost`), the browser offers to install it, and after the first visit the whole app works without a network: a service worker (`src/service-worker/index.ts`) caches every built file, and your code is saved in the browser. A new deployment installs its own cache in the background and takes over once the old version's tabs are closed. In dev (`npm run dev`) only the static files are cached, so test offline behavior with `npm run build` and `npm run preview`.
 
-To deploy, pick an adapter in `vite.config.ts` (it is `adapter-auto` for now); any static host works, since the app is fully prerendered.
-
 ## Using it
 
 - Draw in world coordinates: `(0, 0)` is the origin and **Y grows upward**.
@@ -26,7 +24,7 @@ To deploy, pick an adapter in `vite.config.ts` (it is `adapter-auto` for now); a
 - The sketch runs in a sandboxed iframe. Errors show below the editor, and your code is saved in the browser automatically.
 - **Export HTML** (above the preview) downloads a self-contained page with its own pan, zoom, sliders and helpers.
 - The **Examples** menu loads ready-made sketches (shapes, plots, a phase portrait, the Mandelbrot set, charts, interactive toys). Their comments explain the helpers they use.
-- The in-app **Help** has every helper with an example and a **Load** button that puts it in the editor, and `Ctrl + Space` autocompletes them.
+- The in-app **Help** has every helper with an example and a ▶ button that loads it into the editor and runs it, and `Ctrl + Space` autocompletes them.
 
 ```js
 animate((t) => {
@@ -90,7 +88,7 @@ Optional arguments fall back to the current `ctx` styles and never change them.
 | `bars(list, width?, color?)` | Bar chart from numbers. |
 | `hist(list, bins?)` | Histogram of numbers; returns the counts. |
 
-Ramps for `heat` and `scatter`: `'viridis'` (default), `'magma'`, `'turbo'`, `'gray'`, or a function `t => color`.
+Ramps for `heat` and `scatter`: `'viridis'` (default), `'magma'`, `'inferno'`, `'plasma'`, `'cividis'` (color-blind safe), `'turbo'`, `'hot'` and `'gray'` for values from low to high; `'coolwarm'` for values on both sides of a middle (0.5 is neutral); `'vexel'`, the logo gradient. Or pass a function `t => color`.
 
 **Colors**
 

@@ -185,7 +185,7 @@ animate((t) => {
 		code: `// The Mandelbrot set with heat(): f(x, y) returns a number from 0 to 1 and heat() colors
 // the whole view with it. Pan and zoom to explore; each cell is a few screen pixels.
 // select() adds a chooser: click its left or right half to switch colormaps.
-const ramp = select('ramp', ['magma', 'turbo', 'viridis', 'gray'])
+const ramp = select('ramp', ['magma', 'inferno', 'plasma', 'turbo', 'viridis', 'cividis', 'hot', 'vexel', 'gray'])
 const maxIter = slider('iterations', 10, 150, 60, 1)
 
 clear('#282c34')
@@ -303,7 +303,7 @@ fit(-10, -20, 390, 130)
 		description: 'scatter, select: dots colored by a value.',
 		code: `// scatter(list, size, ramp) draws dots from [x, y, value] triples, colored by value (0 to 1).
 // Here the value is simply how far along the spiral each dot is.
-const ramp = select('ramp', ['turbo', 'viridis', 'magma', 'gray'])
+const ramp = select('ramp', ['turbo', 'viridis', 'plasma', 'inferno', 'cividis', 'hot', 'coolwarm', 'vexel', 'gray'])
 const n = slider('points', 50, 1500, 600, 10)
 
 const pts = []
