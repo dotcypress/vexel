@@ -35,6 +35,8 @@
 
 	// Latest value of each slider() reported by the sketch, by name.
 	const sliderValues: Record<string, number> = {};
+	// Cursor the sketch asks for while the pointer is over a drag() handle.
+	let sketchCursor = $state('');
 
 	let panning = false;
 	let panStart = { x: 0, y: 0, panX: 0, panY: 0 };
@@ -210,6 +212,7 @@
 		const d = e.data;
 		if (!d || d.source !== 'vexel') return;
 		if (d.type === 'ready') {
+			sketchCursor = '';
 			// Every edit reloads the sketch; hand back slider values so they survive.
 			frame?.contentWindow?.postMessage({ source: 'vexel', type: 'sliders', values: sliderValues }, '*');
 			sendCamera(panX, panY, zoom);
@@ -231,6 +234,8 @@
 						text: String(x.text).slice(0, 2000)
 					}))
 			);
+		} else if (d.type === 'cursor') {
+			sketchCursor = d.cursor === 'grab' || d.cursor === 'grabbing' ? d.cursor : '';
 		} else if (d.type === 'error') {
 			onerror(String(d.message));
 		} else if (d.type === 'ok') {
@@ -297,6 +302,7 @@
 		class:grab={spaceDown}
 		class:dragging
 		bind:this={viewport}
+		style:cursor={!spaceDown && !dragging && sketchCursor ? sketchCursor : null}
 		tabindex="0"
 		role="application"
 		aria-label="Graphics preview"

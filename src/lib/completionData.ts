@@ -31,7 +31,7 @@ export const SKETCH: Completion[] = [
 		type: 'variable',
 		info: 'Visible world area: { x, y, zoom, left, top, right, bottom, width, height }.'
 	},
-	{ label: 'mouse', type: 'variable', info: 'Pointer in world coordinates: { x, y, down }.' },
+	{ label: 'mouse', type: 'variable', info: 'Pointer in world coordinates: { x, y, down, clicked }. clicked is true for one frame after a click on the sketch.' },
 	{
 		label: 'frame',
 		type: 'variable',
@@ -53,6 +53,24 @@ export const SKETCH: Completion[] = [
 		'x, y, radius, fill?, stroke?, lineWidth?',
 		'fill: color, omit/true for ctx.fillStyle, false/null for none. stroke: color, true for ctx.strokeStyle, omit for none.',
 		'circle(${x}, ${y}, ${radius})'
+	),
+	fn(
+		'ellipse',
+		'x, y, rx, ry, fill?, stroke?, lineWidth?, rotation?',
+		'Ellipse centered at x, y with radii rx, ry, rotated by rotation radians. fill and stroke work like circle().',
+		'ellipse(${x}, ${y}, ${rx}, ${ry})'
+	),
+	fn(
+		'arc',
+		'x, y, radius, start, end, color?, lineWidth?',
+		'Stroked arc of a circle from angle start to end in radians, counterclockwise (clockwise if end < start).',
+		'arc(${x}, ${y}, ${radius}, ${0}, ${PI})'
+	),
+	fn(
+		'poly',
+		'list, fill?, stroke?, lineWidth?',
+		'Closed polygon through [[x, y], ...]. fill and stroke work like circle().',
+		'poly(${list})'
 	),
 	fn(
 		'rect',
@@ -114,6 +132,12 @@ export const SKETCH: Completion[] = [
 		'f, color?, lineWidth?',
 		'Graph of r = f(theta) for theta from 0 to 2*PI. Gaps where f is not a finite number.',
 		'plotPolar((theta) => ${})'
+	),
+	fn(
+		'plotParam',
+		'fx, fy, t0?, t1?, color?, lineWidth?',
+		'Parametric curve x = fx(t), y = fy(t) for t from t0 to t1 (default 0 to 2*PI). Gaps where either is not a finite number.',
+		'plotParam((t) => ${}, (t) => ${})'
 	),
 	fn(
 		'toggle',
@@ -234,6 +258,48 @@ export const SKETCH: Completion[] = [
 		'a, b, t',
 		'The value t of the way from a to b: lerp(10, 20, 0.5) is 15. t is not clamped.',
 		'lerp(${a}, ${b}, ${t})'
+	),
+	fn(
+		'random',
+		'a?, b?',
+		'Seeded random number: random() is 0..1, random(b) is 0..b, random(a, b) is a..b, random(list) picks an item. The same on every re-run; call seed(n) for a different sequence.',
+		'random(${})'
+	),
+	fn(
+		'seed',
+		'n',
+		'Restarts random() and gauss() from seed n. Every run starts from seed 1.',
+		'seed(${1})'
+	),
+	fn(
+		'gauss',
+		'mean?, sd?',
+		'Seeded normally distributed number with the given mean (default 0) and standard deviation (default 1).',
+		'gauss(${})'
+	),
+	fn(
+		'once',
+		'key?, fn',
+		'Calls fn the first time and returns the same result after that, across frames and re-runs from panning or controls. Editing the code starts over. Pass a key to tell apart functions with the same source.',
+		'once(() => ${})'
+	),
+	fn(
+		'button',
+		'name',
+		'Adds a button to the control panel. Returns true for the one frame (or re-run) after it is clicked.',
+		'button("${name}")'
+	),
+	fn(
+		'every',
+		'seconds, fn?, key?',
+		'Inside animate: true once every given number of seconds, and calls fn when it is. Calls with the same period and function share a timer; pass a key to separate them.',
+		'every(${1}, () => ${})'
+	),
+	fn(
+		'drag',
+		'id, x, y, r?, color?',
+		'A handle the user can drag, starting at x, y. Returns its current [x, y]. The position survives re-runs and code edits. r is the grab radius in screen pixels (default 8).',
+		'drag("${id}", ${x}, ${y})'
 	)
 ];
 
@@ -294,13 +360,13 @@ const MATH_PARAMS: Record<string, string> = {
 	max: '...values',
 	min: '...values',
 	hypot: '...values',
-	random: '',
 	clz32: 'n'
 };
 
 // Every Math member is available as a bare global in sketches (see runtime.ts).
-// Math members that a helper of the same name replaces: log() prints (use Math.log for ln).
-const SHADOWED_MATH = new Set(['log']);
+// Math members that a helper of the same name replaces: log() prints (use Math.log for ln)
+// and random() is seeded (use Math.random for unseeded numbers).
+const SHADOWED_MATH = new Set(['log', 'random']);
 
 export const MATH: Completion[] = Object.getOwnPropertyNames(Math)
 	.filter((name) => !SHADOWED_MATH.has(name))

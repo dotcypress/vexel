@@ -1,5 +1,7 @@
 # vexel
 
+[![Proudly Vibe Coded - Molten Ember](https://vibecoded.fyi/badges/terminal/main/proudly-vibe-coded-molten-ember.svg)](https://vibecoded.fyi/)
+
 A live-coding playground for 2D graphics and math plots. Write JavaScript on the left, see it on an infinite, pannable and zoomable canvas on the right. Code re-runs as you type, and any sketch can be exported as a standalone HTML file.
 
 Built with SvelteKit and CodeMirror.
@@ -43,9 +45,9 @@ animate((t) => {
 |---|---|
 | `canvas`, `ctx` | The canvas and its 2D context, already set up for the world camera. |
 | `view` | Visible world area: `x, y, zoom, left, top, right, bottom, width, height`. |
-| `mouse` | Pointer in world coordinates: `x, y, down`. |
+| `mouse` | Pointer in world coordinates: `x, y, down`, and `clicked` (true for one frame after a click on the sketch). |
 | `frame` | `n` (frame index), `time` and `dt` (seconds), `fps` (smoothed). |
-| `sin, cos, PI, ...` | Every `Math` function and constant is global, except `log`, which prints (use `Math.log` for the natural logarithm). |
+| `sin, cos, PI, ...` | Every `Math` function and constant is global, except `log`, which prints (use `Math.log` for the natural logarithm), and `random`, which is seeded (use `Math.random` for unseeded numbers). |
 
 ### Helpers
 
@@ -71,6 +73,9 @@ Optional arguments fall back to the current `ctx` styles and never change them.
 | `polyline([[x, y], ...], color?, lineWidth?, closed?)` | Connected lines. |
 | `curve(x1, y1, cx, cy, x2, y2, color?, lineWidth?)` | Quadratic Bezier curve. |
 | `circle(x, y, radius, fill?, stroke?, lineWidth?)` | Circle. |
+| `ellipse(x, y, rx, ry, fill?, stroke?, lineWidth?, rotation?)` | Ellipse, optionally rotated (radians). |
+| `arc(x, y, radius, start, end, color?, lineWidth?)` | Stroked arc from angle `start` to `end` (radians, counterclockwise). |
+| `poly([[x, y], ...], fill?, stroke?, lineWidth?)` | Closed, filled polygon. |
 | `rect(x, y, w, h, fill?, stroke?, lineWidth?)` | Rectangle from its bottom-left corner. |
 | `text(str, x, y, color?, size?, align?)` | Text in world units. |
 | `trail(id, x, y, n?, color?)` | Fading line through the last `n` positions. |
@@ -80,6 +85,7 @@ Optional arguments fall back to the current `ctx` styles and never change them.
 | Helper | Description |
 |---|---|
 | `plot(f, color?, lineWidth?, from?, to?)` | Graph of `y = f(x)`. |
+| `plotParam(fx, fy, t0?, t1?, color?, lineWidth?)` | Parametric curve `x = fx(t), y = fy(t)`, t from 0 to 2π by default. |
 | `plotPolar(f, color?, lineWidth?)` | Graph of `r = f(theta)` for theta from 0 to 2π. |
 | `contour(f, level?, color?, lineWidth?)` | Curve where `f(x, y) = level`. |
 | `field(f, step?, color?)` | Vector field; `f(x, y)` returns `[dx, dy]`. |
@@ -107,6 +113,10 @@ Ramps for `heat` and `scatter`: `'viridis'` (default), `'magma'`, `'inferno'`, `
 | `bounds(points)` | `[x, y, w, h]` around a list of `[x, y]` points, for `fit(...bounds(points))`. |
 | `normalize(list)` | The list rescaled to 0..1. |
 | `lerp(a, b, t)` | The value `t` of the way from `a` to `b`. |
+| `random(a?, b?)` | Seeded random: `0..1`, `0..b`, `a..b`, or an item of a list. Same on every re-run. |
+| `seed(n)` | Restart `random` and `gauss` from seed `n` (every run starts from 1). |
+| `gauss(mean?, sd?)` | Seeded normally distributed number (default mean 0, sd 1). |
+| `once(key?, fn)` | Call `fn` the first time, then return its cached result on later frames and re-runs. |
 
 **Interaction and overlays**
 
@@ -115,12 +125,15 @@ Ramps for `heat` and `scatter`: `'viridis'` (default), `'magma'`, `'inferno'`, `
 | `slider(name, min, max, value?, step?)` | Slider; returns its value. |
 | `toggle(name, value?)` | Checkbox; returns a boolean. |
 | `select(name, options, value?)` | Chooser; returns the chosen option. |
+| `button(name)` | Button; true for the one frame after it is clicked. |
+| `every(seconds, fn?, key?)` | In `animate`: true once every `seconds`, and calls `fn` when it is. |
+| `drag(id, x, y, r?, color?)` | Draggable handle; returns its `[x, y]`, which survives re-runs and edits. |
 | `key(name)` | True while a key is held, e.g. `'ArrowLeft'`, `'a'`, `'Space'`. |
 | `hover(x, y, r)` | True while the pointer is within `r` of a point. |
 | `hud(...lines)` | Text in the top-left corner for this frame. |
 | `log(...values)` | Print to the console panel under the editor (also catches `console.log`, `warn`, `error`). |
 
-Sliders, toggles, selects and `hud` are drawn in screen pixels on top of the sketch, so they ignore pan and zoom, and their values survive re-runs. Call `clear()` first in animated sketches so they don't smear. Click the preview to give it keyboard focus for `key`.
+Sliders, toggles, selects, buttons and `hud` are drawn in screen pixels on top of the sketch, so they ignore pan and zoom, and their values survive re-runs. Call `clear()` first in animated sketches so they don't smear. Click the preview to give it keyboard focus for `key`.
 
 ### Shortcuts
 

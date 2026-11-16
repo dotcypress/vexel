@@ -41,7 +41,7 @@ var view = {
   left: 0, top: 0, right: 0, bottom: 0,
   width: 0, height: 0
 };
-var mouse = { x: 0, y: 0, down: false };
+var mouse = { x: 0, y: 0, down: false, clicked: false };
 // n: index of the current frame, time/dt: seconds, fps: smoothed frames per second.
 var frame = { n: 0, time: 0, dt: 0, fps: 0 };
 
@@ -157,6 +157,37 @@ function circle(x, y, radius, fill, stroke, lineWidth) {
   ctx.save();
   ctx.beginPath();
   ctx.arc(x, y, Math.abs(radius), 0, Math.PI * 2);
+  paint(fill, stroke, lineWidth);
+  ctx.restore();
+}
+
+function ellipse(x, y, rx, ry, fill, stroke, lineWidth, rotation) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(x, y, Math.abs(rx), Math.abs(ry), rotation || 0, 0, Math.PI * 2);
+  paint(fill, stroke, lineWidth);
+  ctx.restore();
+}
+
+// Stroked arc of a circle, from angle start to end in radians, counterclockwise.
+function arc(x, y, radius, start, end, color, lineWidth) {
+  ctx.save();
+  if (color) ctx.strokeStyle = color;
+  if (lineWidth != null) ctx.lineWidth = lineWidth;
+  ctx.beginPath();
+  ctx.arc(x, y, Math.abs(radius), start, end, end < start);
+  ctx.stroke();
+  ctx.restore();
+}
+
+// Closed polygon through [[x, y], ...]. fill and stroke work like circle().
+function poly(list, fill, stroke, lineWidth) {
+  if (list.length < 2) return;
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(list[0][0], list[0][1]);
+  for (var i = 1; i < list.length; i++) ctx.lineTo(list[i][0], list[i][1]);
+  ctx.closePath();
   paint(fill, stroke, lineWidth);
   ctx.restore();
 }
@@ -508,6 +539,66 @@ function lerp(a, b, t) {
   return a + (b - a) * t;
 }
 
+// once(fn) or once(key, fn): calls fn the first time and returns the cached result
+// after that, across frames and across re-runs from panning or controls. Editing the
+// code reloads the preview, which clears the cache. Without a key, the function's
+// source text is the key.
+var onceCache = Object.create(null);
+
+function once(key, fn) {
+  if (typeof key === 'function') {
+    fn = key;
+    key = String(fn);
+  }
+  key = String(key);
+  if (!(key in onceCache)) onceCache[key] = fn();
+  return onceCache[key];
+}
+
+// Seeded random numbers (mulberry32). The generator restarts from the same seed on
+// every run, so re-runs triggered by panning or controls draw the same picture.
+var DEFAULT_SEED = 1;
+var rngState = DEFAULT_SEED;
+var spareGauss = null;
+
+function seed(n) {
+  rngState = (Number(n) || 0) >>> 0;
+  spareGauss = null;
+}
+
+function rand01() {
+  rngState = (rngState + 0x6d2b79f5) >>> 0;
+  var t = rngState;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+
+// random(): 0..1. random(b): 0..b. random(a, b): a..b. random(list): a random item.
+function random(a, b) {
+  var r = rand01();
+  if (Array.isArray(a)) return a[Math.floor(r * a.length)];
+  if (a == null) return r;
+  if (b == null) return r * a;
+  return a + (b - a) * r;
+}
+
+// Normally distributed number (Box-Muller), mean 0 and sd 1 by default.
+function gauss(mean, sd) {
+  var z;
+  if (spareGauss !== null) {
+    z = spareGauss;
+    spareGauss = null;
+  } else {
+    var u = 1 - rand01();
+    var v = rand01();
+    var m = Math.sqrt(-2 * Math.log(u));
+    z = m * Math.cos(2 * Math.PI * v);
+    spareGauss = m * Math.sin(2 * Math.PI * v);
+  }
+  return (mean == null ? 0 : mean) + (sd == null ? 1 : sd) * z;
+}
+
 // Function t (0..1) => color for a ramp argument: a built-in name or your own function.
 function rampFn(ramp) {
   if (typeof ramp === 'function') return ramp;
@@ -820,6 +911,35 @@ function plotPolar(f, color, lineWidth) {
   ctx.restore();
 }
 
+// Parametric curve x = fx(t), y = fy(t) for t from t0 to t1 (default 0 to 2*PI).
+// Gaps appear wherever fx or fy returns something that is not a finite number.
+function plotParam(fx, fy, t0, t1, color, lineWidth) {
+  if (t0 == null) t0 = 0;
+  if (t1 == null) t1 = Math.PI * 2;
+  var n = 2000;
+  ctx.save();
+  ctx.strokeStyle = color || PALETTE[0];
+  if (lineWidth != null) ctx.lineWidth = lineWidth;
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  var pen = false;
+  for (var i = 0; i <= n; i++) {
+    var t = t0 + ((t1 - t0) * i) / n;
+    var x = fx(t);
+    var y = fy(t);
+    if (typeof x !== 'number' || !isFinite(x) || typeof y !== 'number' || !isFinite(y)) {
+      pen = false;
+    } else if (pen) {
+      ctx.lineTo(x, y);
+    } else {
+      ctx.moveTo(x, y);
+      pen = true;
+    }
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
 // Keyboard state. Keys are stored lowercased under both event.key and event.code,
 // so key('a'), key('ArrowLeft') and key('Space') all work.
 var keys = Object.create(null);
@@ -849,7 +969,7 @@ function key(name) {
 
 // Screen-space overlays (sliders, toggles and hud) are drawn after the sketch has
 // finished a frame, so they always end up on top.
-var sliders = [];   // controls: sliders and toggles, in first-use order
+var sliders = [];   // controls: sliders, toggles, selects and buttons, in first-use order
 var sliderMap = Object.create(null);
 var savedSliders = Object.create(null);   // values restored by the host after a re-run
 var activeSlider = null;
@@ -859,6 +979,8 @@ var SLIDER_W = 180;
 var SLIDER_ROW = 36;
 var TOGGLE_ROW = 24;
 var SELECT_ROW = 44;
+var BUTTON_ROW = 30;
+var pressedButton = null;   // the button under a held pointer, drawn highlighted
 
 function fmtNumber(v) {
   return String(Number(v.toPrecision(4)));
@@ -926,6 +1048,99 @@ function select(name, options, value) {
   return options[s.value];
 }
 
+// Adds (once) a push button to the same panel. Returns true for the one frame or re-run
+// after it was clicked, false otherwise.
+function button(name) {
+  name = String(name);
+  var s = sliderMap[name];
+  if (s && s.kind !== 'button') return false;   // name already used by another control
+  if (!s) {
+    s = sliderMap[name] = { kind: 'button', name: name, value: 0, pending: false, fired: false };
+    sliders.push(s);
+  }
+  return s.fired;
+}
+
+// drag(id, x, y, r?, color?): a handle the user can drag with the left button. Returns
+// its current [x, y]; x, y is where it starts. The position survives frames, re-runs and
+// code edits (the host keeps it with the slider values). r is the grab radius in screen pixels (default 8).
+// Handles are drawn on top of the sketch, like the controls.
+var DRAG_KEY = '@drag:';            // prefix for handle positions stored with slider values
+var handles = Object.create(null);   // id -> { x, y }, kept across runs
+var handleList = [];                 // handles used by the latest run, in call order
+var activeHandle = null;
+var hoveredHandle = null;
+var dragOffset = { x: 0, y: 0 };
+
+function drag(id, x, y, r, color) {
+  id = String(id);
+  var h = handles[id];
+  if (!h) {
+    var key = DRAG_KEY + id;
+    var saved = key + ':x' in savedSliders && key + ':y' in savedSliders;
+    h = handles[id] = {
+      x: saved ? savedSliders[key + ':x'] : Number(x) || 0,
+      y: saved ? savedSliders[key + ':y'] : Number(y) || 0
+    };
+  }
+  h.id = id;
+  h.r = r > 0 ? r : 8;
+  h.color = color || PALETTE[0];
+  if (handleList.indexOf(h) < 0) handleList.push(h);
+  return [h.x, h.y];
+}
+
+// The topmost handle within its radius of a screen point, or null.
+function handleAt(sx, sy) {
+  for (var i = handleList.length - 1; i >= 0; i--) {
+    var h = handleList[i];
+    var dx = h.x * cam.zoom + cam.x - sx;
+    var dy = cam.y - h.y * cam.zoom - sy;
+    if (dx * dx + dy * dy <= (h.r + 4) * (h.r + 4)) return h;
+  }
+  return null;
+}
+
+// Clicks arrive between frames. Each one is handed to exactly one run of the sketch code:
+// the next animate frame, or the re-run a click triggers in a static sketch.
+var pendingClick = false;
+
+function latchClicks() {
+  mouse.clicked = pendingClick;
+  pendingClick = false;
+  for (var i = 0; i < sliders.length; i++) {
+    var s = sliders[i];
+    if (s.kind !== 'button') continue;
+    s.fired = s.pending;
+    s.pending = false;
+  }
+}
+
+// every(seconds, fn?): true once every given number of seconds of animation time, and
+// calls fn when it is. The first time comes one period after the first call. Calls with
+// the same period and function share a timer; pass a different key to separate them.
+var timers = Object.create(null);
+
+function every(seconds, fn, key) {
+  if (!(seconds > 0)) return false;
+  var id = String(seconds) + '|' + (key != null ? key : fn ? String(fn) : '');
+  var now = frame.time;
+  var tm = timers[id];
+  if (!tm) {
+    timers[id] = { next: now + seconds, n: frame.n };
+    return false;
+  }
+  if (tm.n === frame.n) return tm.fired;   // asked again within the same frame
+  tm.n = frame.n;
+  tm.fired = now >= tm.next;
+  if (tm.fired) {
+    tm.next += seconds;
+    if (tm.next <= now) tm.next = now + seconds;   // skip missed beats instead of bursting
+    if (fn) fn();
+  }
+  return tm.fired;
+}
+
 // Each argument is a line of text; a plain object becomes one "key: value" line per entry.
 // Shown in the top-left corner for the current frame only.
 function hud() {
@@ -989,7 +1204,9 @@ function log() {
 }
 
 function controlHeight(c) {
-  return c.kind === 'toggle' ? TOGGLE_ROW : c.kind === 'select' ? SELECT_ROW : SLIDER_ROW;
+  if (c.kind === 'toggle') return TOGGLE_ROW;
+  if (c.kind === 'button') return BUTTON_ROW;
+  return c.kind === 'select' ? SELECT_ROW : SLIDER_ROW;
 }
 
 function sliderRow(i) {
@@ -1006,10 +1223,16 @@ function updateSliders() {
   var sy = cam.y - mouse.y * cam.zoom;
   if (down && !prevDown) {
     activeSlider = null;
+    var hit = false;
     for (var i = 0; i < sliders.length; i++) {
       var r = sliderRow(i);
       if (sx >= r.x - 8 && sx <= r.x + SLIDER_W + 8 && sy >= r.y && sy < r.y + r.h) {
-        if (sliders[i].kind === 'toggle') {
+        hit = true;
+        if (sliders[i].kind === 'button') {
+          sliders[i].pending = true;
+          pressedButton = sliders[i];
+          dirty = true;
+        } else if (sliders[i].kind === 'toggle') {
           sliders[i].value = sliders[i].value ? 0 : 1;
           dirty = true;
           post({ source: 'vexel', type: 'slider', name: sliders[i].name, value: sliders[i].value });
@@ -1024,10 +1247,48 @@ function updateSliders() {
         break;
       }
     }
+    if (!hit) {
+      activeHandle = handleAt(sx, sy);
+      if (activeHandle) {
+        dragOffset.x = activeHandle.x - mouse.x;
+        dragOffset.y = activeHandle.y - mouse.y;
+      } else {
+        // A click on the sketch itself, not on a control or a handle.
+        pendingClick = true;
+      }
+      dirty = true;
+    }
   } else if (!down) {
     activeSlider = null;
+    if (activeHandle) {
+      post({ source: 'vexel', type: 'slider', name: DRAG_KEY + activeHandle.id + ':x', value: activeHandle.x });
+      post({ source: 'vexel', type: 'slider', name: DRAG_KEY + activeHandle.id + ':y', value: activeHandle.y });
+      activeHandle = null;
+      dirty = true;
+    }
+    if (pressedButton) {
+      pressedButton = null;
+      dirty = true;
+    }
   }
   prevDown = down;
+  if (activeHandle && down) {
+    var nx = mouse.x + dragOffset.x;
+    var ny = mouse.y + dragOffset.y;
+    if (nx !== activeHandle.x || ny !== activeHandle.y) {
+      activeHandle.x = nx;
+      activeHandle.y = ny;
+      dirty = true;
+    }
+  }
+  var over = activeHandle || (down ? null : handleAt(sx, sy));
+  if (over !== hoveredHandle) {
+    hoveredHandle = over;
+    var cur = over ? (activeHandle ? 'grabbing' : 'grab') : '';
+    canvas.style.cursor = cur;
+    post({ source: 'vexel', type: 'cursor', cursor: cur });
+    dirty = true;
+  }
   if (!activeSlider) return;
   var row = sliderRow(sliders.indexOf(activeSlider));
   var t = Math.min(1, Math.max(0, (sx - row.x) / SLIDER_W));
@@ -1048,7 +1309,7 @@ function overlayBox(x, y, w, h) {
 }
 
 function drawOverlays() {
-  if (!sliders.length && !hudLines.length) return;
+  if (!sliders.length && !hudLines.length && !handleList.length) return;
   var mono = 'ui-monospace, Menlo, Consolas, monospace';
   var i;
   ctx.save();
@@ -1061,6 +1322,20 @@ function drawOverlays() {
   ctx.setLineDash([]);
   ctx.textBaseline = 'top';
   ctx.font = '11px ' + mono;
+
+  for (i = 0; i < handleList.length; i++) {
+    var hd = handleList[i];
+    var hx = hd.x * cam.zoom + cam.x;
+    var hy = cam.y - hd.y * cam.zoom;
+    var lit = hd === activeHandle || hd === hoveredHandle;
+    ctx.beginPath();
+    ctx.arc(hx, hy, hd.r * (lit ? 1.25 : 1), 0, Math.PI * 2);
+    ctx.fillStyle = lit ? '#ffffff' : '#dfe3ee';
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = hd.color;
+    ctx.stroke();
+  }
 
   if (hudLines.length) {
     var width = 0;
@@ -1096,6 +1371,17 @@ function drawOverlays() {
           ctx.lineTo(r.x + SLIDER_W - 3, r.y + 3);
           ctx.stroke();
         }
+        continue;
+      }
+      if (s.kind === 'button') {
+        ctx.fillStyle = s === pressedButton ? '#7d8bff' : '#5b6cf0';
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(r.x, r.y, SLIDER_W, 22, 4);
+        else ctx.rect(r.x, r.y, SLIDER_W, 22);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.textAlign = 'center';
+        ctx.fillText(s.name, r.x + SLIDER_W / 2, r.y + 6);
         continue;
       }
       if (s.kind === 'select') {
@@ -1175,7 +1461,10 @@ var scopeNames = [
   'field', 'heat',
   'hover', 'trail', 'contour',
   'select', 'scatter', 'bars', 'hist', 'log',
-  'range', 'linspace', 'bounds', 'normalize', 'lerp'
+  'range', 'linspace', 'bounds', 'normalize', 'lerp',
+  'plotParam', 'ellipse', 'arc', 'poly',
+  'seed', 'random', 'gauss', 'once',
+  'button', 'every', 'drag'
 ];
 var scopeValues = [
   canvas, ctx, view, mouse, frame, animate,
@@ -1185,10 +1474,13 @@ var scopeValues = [
   field, heat,
   hover, trail, contour,
   select, scatter, bars, hist, log,
-  range, linspace, bounds, normalize, lerp
+  range, linspace, bounds, normalize, lerp,
+  plotParam, ellipse, arc, poly,
+  seed, random, gauss, once,
+  button, every, drag
 ];
 Object.getOwnPropertyNames(Math).forEach(function (name) {
-  // Helpers win over Math members of the same name (log prints; use Math.log for ln).
+  // Helpers win over Math members of the same name (log prints; use Math.log for ln, random is seeded; use Math.random for unseeded).
   if (scopeNames.indexOf(name) >= 0) return;
   scopeNames.push(name);
   scopeValues.push(Math[name]);
@@ -1207,6 +1499,9 @@ function execute() {
       );
     }
     hoverTests = [];
+    handleList = [];
+    seed(DEFAULT_SEED);
+    latchClicks();
     sketch.apply(null, scopeValues);
     drawOverlays();
     return true;
@@ -1238,7 +1533,9 @@ function tick(now) {
     frame.time = t;
     frame.dt = dt;
     hoverTests.length = 0;
+    handleList = [];
     if (dt > 0) frame.fps = frame.fps ? frame.fps * 0.9 + (1 / dt) * 0.1 : 1 / dt;
+    latchClicks();
     try {
       fn(t, dt);
       drawOverlays();

@@ -118,6 +118,21 @@
 					example: "circle(0, 0, 40, 'hotpink', 'white', 2)"
 				},
 				{
+					signature: 'ellipse(x, y, rx, ry, fill?, stroke?, lineWidth?, rotation?)',
+					text: 'Ellipse centered at x, y with horizontal radius rx and vertical radius ry, rotated counterclockwise by rotation radians.',
+					example: "ellipse(0, 0, 60, 30, palette(2), 'white', 2, PI / 6)"
+				},
+				{
+					signature: 'arc(x, y, radius, start, end, color?, lineWidth?)',
+					text: 'Part of a circle outline from angle start to end in radians, counterclockwise (clockwise when end < start).',
+					example: 'arc(0, 0, 40, 0, PI * 1.5, palette(1), 4)'
+				},
+				{
+					signature: 'poly(list, fill?, stroke?, lineWidth?)',
+					text: 'Closed polygon through [[x, y], ...], filled and/or stroked like circle().',
+					example: "poly([[-40, -30], [40, -30], [0, 40]], palette(5), 'white', 2)"
+				},
+				{
 					signature: 'rect(x, y, w, h, fill?, stroke?, lineWidth?)',
 					text: 'Rectangle with its bottom-left corner at x, y, extending w to the right and h up.',
 					example: 'rect(-40, -20, 80, 40, palette(3))'
@@ -138,6 +153,11 @@
 					signature: 'plot(f, color?, lineWidth?, from?, to?)',
 					text: 'Graph of y = f(x) over the visible x range, or from..to. Leaves gaps where f is not a finite number.',
 					example: 'plot((x) => 40 * sin(x / 20), palette(0), 2)'
+				},
+				{
+					signature: 'plotParam(fx, fy, t0?, t1?, color?, lineWidth?)',
+					text: 'Parametric curve x = fx(t), y = fy(t) for t from t0 to t1 (default 0 to 2*PI). Leaves gaps where either is not a finite number.',
+					example: 'plotParam((t) => 60 * sin(3 * t), (t) => 60 * sin(2 * t), 0, 2 * PI, palette(3), 2)'
 				},
 				{
 					signature: 'plotPolar(f, color?, lineWidth?)',
@@ -224,17 +244,57 @@
 					signature: 'lerp(a, b, t)',
 					text: 'The value t of the way from a to b: lerp(10, 20, 0.5) is 15. t is not clamped, so values outside 0..1 extrapolate.',
 					example: "circle(lerp(-80, 80, 0.25), 0, 20, hsl(lerp(200, 320, 0.25), 80, 60))"
+				},
+				{
+					signature: 'random(a?, b?)',
+					text: 'Seeded random number: random() is 0..1, random(b) is 0..b, random(a, b) is a..b, and random(list) picks an item. The sequence restarts on every run, so panning or moving a slider redraws the same picture.',
+					example: "range(200).forEach(() => point(random(-150, 150), random(-100, 100), random(2, 8), random([palette(0), palette(4), palette(6)])))"
+				},
+				{
+					signature: 'seed(n)',
+					text: 'Restarts random() and gauss() from seed n, for a different but still repeatable sequence. Every run starts from seed 1.',
+					example: "seed(slider('seed', 1, 100, 1, 1))\nrange(30).forEach(() => circle(random(-150, 150), random(-100, 100), random(5, 25), hsl(random(360), 70, 60, 0.6)))"
+				},
+				{
+					signature: 'gauss(mean?, sd?)',
+					text: 'Seeded normally distributed number with the given mean (default 0) and standard deviation (default 1). Most values land within 2 sd of the mean.',
+					example: "clear('#282c34')\naxes()\nhist(range(2000).map(() => gauss(100, 25)), 30)\nfit(0, -10, 200, 280)"
+				},
+				{
+					signature: 'once(key?, fn)',
+					text: 'Calls fn the first time and returns the same result after that: on later frames, and when panning, zooming or a control re-runs the sketch. Use it for expensive setup or state that should survive re-runs. Editing the code starts over. Without a key, functions with identical source share a result.',
+					example: "const stars = once(() => range(300).map(() => [Math.random() * 400 - 200, Math.random() * 300 - 150]))\nclear('#14161b')\npoints(stars, 3, 'white')\nhud('pan around: the stars stay put')"
 				}
 			]
 		},
 		{
 			title: 'Interaction and overlays',
-			note: 'slider, toggle, select and hud are drawn on top once your code has finished a frame, in screen pixels, so they ignore pan and zoom. Call clear() first in animated sketches so they do not smear. Slider, toggle and select values survive re-runs.',
+			note: 'slider, toggle, select, button, drag handles and hud are drawn on top once your code has finished a frame, in screen pixels, so they ignore pan and zoom. Call clear() first in animated sketches so they do not smear. Slider, toggle and select values survive re-runs.',
 			helpers: [
 				{
 					signature: 'slider(name, min, max, value?, step?)',
 					text: 'Adds a slider to the top-right of the preview and returns its current value (default min).',
 					example: "const r = slider('radius', 5, 100, 40)\ncircle(0, 0, r, palette(0))"
+				},
+				{
+					signature: 'button(name)',
+					text: 'Adds a button to the control panel. Returns true for the one frame after it is clicked (or the one re-run, in a sketch without animate).',
+					example: "let n = 0\nanimate(() => {\n  if (button('add a dot')) n++\n  clear('#282c34')\n  range(n).forEach((i) => circle(i * 30 - 150, 0, 10, palette(i)))\n})"
+				},
+				{
+					signature: 'every(seconds, fn?, key?)',
+					text: 'Use inside animate. True once every given number of seconds (the first time one period in), and calls fn when it is. Calls with the same period and function share a timer; pass a key to tell them apart.',
+					example: "let hue = 0\nanimate(() => {\n  every(0.5, () => (hue += 40))\n  clear('#282c34')\n  circle(0, 0, 60, hsl(hue, 80, 60))\n})"
+				},
+				{
+					signature: 'drag(id, x, y, r?, color?)',
+					text: 'A round handle the user can drag with the left button, starting at x, y. Returns its current [x, y]. The position survives re-runs and code edits; rename the id to start over. r is the radius in screen pixels (default 8). Handles are drawn on top of the sketch, like the controls.',
+					example: "const [ax, ay] = drag('a', -80, -40, 8, palette(0))\nconst [bx, by] = drag('b', 80, 40, 8, palette(1))\nclear('#282c34')\ngrid()\nline(ax, ay, bx, by, 'white', px(2))\nhud('length ' + hypot(bx - ax, by - ay).toFixed(1))"
+				},
+				{
+					signature: 'mouse.clicked',
+					text: 'True for the one frame after the left button goes down on the sketch. Clicks on controls do not count.',
+					example: "const dots = []\nanimate(() => {\n  if (mouse.clicked) dots.push([mouse.x, mouse.y])\n  clear('#282c34')\n  points(dots, 12, palette(2))\n  hud('click to add dots')\n})"
 				},
 				{
 					signature: 'toggle(name, value?)',
@@ -344,7 +404,10 @@
 						<code>x, y, zoom, left, top, right, bottom, width, height</code>.
 					</dd>
 					<dt><code>mouse</code></dt>
-					<dd>Pointer in world coordinates: <code>x, y, down</code>.</dd>
+					<dd>
+						Pointer in world coordinates: <code>x, y, down</code>, and <code>clicked</code>, true for the
+						one frame after a click on the sketch (clicks on controls do not count).
+					</dd>
 					<dt><code>frame</code></dt>
 					<dd>
 						Frame info: <code>n</code> (frame index), <code>time</code> and <code>dt</code> (seconds),
@@ -353,8 +416,8 @@
 					<dt><code>sin, cos, PI, …</code></dt>
 					<dd>
 						Every <code>Math</code> function and constant is global: <code>floor</code>,
-						<code>hypot</code>, <code>random</code>, <code>E</code> and so on.
-						The one exception is <code>log</code>, which prints; use <code>Math.log</code> for the natural logarithm.
+						<code>hypot</code>, <code>round</code>, <code>E</code> and so on.
+						The exceptions are <code>log</code>, which prints (use <code>Math.log</code> for the natural logarithm), and <code>random</code>, which is seeded (use <code>Math.random</code> for unseeded numbers).
 					</dd>
 				</dl>
 			</section>
