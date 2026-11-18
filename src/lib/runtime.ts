@@ -1991,12 +1991,12 @@ else post({ source: 'vexel', type: 'ready' });
 `;
 
 export type PreviewDocOptions = {
-	/** Build a self-contained page that handles its own camera and mouse (for export). */
-	standalone?: boolean;
-	/** Initial zoom for standalone pages. */
-	zoom?: number;
-	/** Initial slider values for standalone pages, by slider name. */
-	sliders?: Record<string, number>;
+  /** Build a self-contained page that handles its own camera and mouse (for export). */
+  standalone?: boolean;
+  /** Initial zoom for standalone pages. */
+  zoom?: number;
+  /** Initial slider values for standalone pages, by slider name. */
+  sliders?: Record<string, number>;
 };
 
 /**
@@ -2007,21 +2007,21 @@ export type PreviewDocOptions = {
  * postMessage. With `standalone` it is a complete page that works on its own.
  */
 export function buildPreviewDoc(code: string, options: PreviewDocOptions = {}): string {
-	// Escape "<" so user code can never close the surrounding <script> tag.
-	const safeCode = JSON.stringify(code).replace(/</g, '\\u003c');
-	const { standalone = false, zoom = 1, sliders = {} } = options;
+  // Escape "<" so user code can never close the surrounding <script> tag.
+  const safeCode = JSON.stringify(code).replace(/</g, '\\u003c');
+  const { standalone = false, zoom = 1, sliders = {} } = options;
 
-	// Exported pages carry their own logo, so they need no files next to them.
-	const dataUri = (svg: string) => 'data:image/svg+xml,' + encodeURIComponent(svg.trim());
+  // Exported pages carry their own logo, so they need no files next to them.
+  const dataUri = (svg: string) => 'data:image/svg+xml,' + encodeURIComponent(svg.trim());
 
-	const head = standalone
-		? `<meta name="viewport" content="width=device-width, initial-scale=1">
+  const head = standalone
+    ? `<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>vexel sketch</title>
 <link rel="icon" href="${dataUri(faviconSvg)}">`
-		: '';
-	const background = standalone ? '#1b1d25' : 'transparent';
-	const extraStyle = standalone
-		? `
+    : '';
+  const background = standalone ? '#1b1d25' : 'transparent';
+  const extraStyle = standalone
+    ? `
   #err { display: none; position: fixed; left: 0; right: 0; bottom: 0; margin: 0; padding: 8px 12px;
     color: #ffb4b4; background: #3a1d22; font: 12px/1.5 ui-monospace, Menlo, Consolas, monospace;
     white-space: pre-wrap; }
@@ -2037,14 +2037,14 @@ export function buildPreviewDoc(code: string, options: PreviewDocOptions = {}): 
     text-transform: lowercase; }
   #brand:hover { opacity: 1; background: rgba(255, 255, 255, 0.08); }
   #brand img { display: block; width: 24px; height: 24px; }`
-		: '';
-	const extraBody = standalone
-			? '\n<pre id="err"></pre>\n<div id="readout"><span id="rx"></span><span id="ry"></span></div>' +
-				`\n<a id="brand" href="${PROJECT_URL}" target="_blank" rel="noopener noreferrer" title="Made with Vexel"><img src="${dataUri(logoSvg)}" alt=""><span>Vexel</span></a>`
-			: '';
-	const standaloneVar = standalone ? `<script>var STANDALONE = { zoom: ${Number(zoom) || 1}, sliders: ${JSON.stringify(sliders).replace(/</g, '\\u003c')} };<\/script>\n` : '';
+    : '';
+  const extraBody = standalone
+      ? '\n<pre id="err"></pre>\n<div id="readout"><span id="rx"></span><span id="ry"></span></div>' +
+        `\n<a id="brand" href="${PROJECT_URL}" target="_blank" rel="noopener noreferrer" title="Made with Vexel"><img src="${dataUri(logoSvg)}" alt=""><span>Vexel</span></a>`
+      : '';
+  const standaloneVar = standalone ? `<script>var STANDALONE = { zoom: ${Number(zoom) || 1}, sliders: ${JSON.stringify(sliders).replace(/</g, '\\u003c')} };<\/script>\n` : '';
 
-	return `<!doctype html>
+  return `<!doctype html>
 <html>
 <head>
 <meta charset="utf-8">

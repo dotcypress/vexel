@@ -1,30 +1,30 @@
 import { DEFAULT_CODE } from './runtime';
 
 export type Example = {
-	id: string;
-	title: string;
-	/** Which helpers or ideas the sketch shows off. */
-	description: string;
-	group: string;
-	code: string;
+  id: string;
+  title: string;
+  /** Which helpers or ideas the sketch shows off. */
+  description: string;
+  group: string;
+  code: string;
 };
 
 // The code is plain text that gets pasted into the editor, so it must not contain
 // backticks or dollar-brace sequences. Keep comments short: Help documents the helpers.
 export const EXAMPLES: Example[] = [
-	{
-		id: 'sunflower',
-		title: 'Sunflower',
-		group: 'Basics',
-		description: 'animate, slider, hsl, point: dots on the golden angle.',
-		code: DEFAULT_CODE
-	},
-	{
-		id: 'shapes',
-		title: 'Shapes',
-		group: 'Basics',
-		description: 'point, line, circle, rect, poly, text: every drawing helper once.',
-		code: `// Every drawing helper once. Y points up and (0, 0) is the center.
+  {
+    id: 'sunflower',
+    title: 'Sunflower',
+    group: 'Basics',
+    description: 'animate, slider, hsl, point: dots on the golden angle.',
+    code: DEFAULT_CODE
+  },
+  {
+    id: 'shapes',
+    title: 'Shapes',
+    group: 'Basics',
+    description: 'point, line, circle, rect, poly, text: every drawing helper once.',
+    code: `// Every drawing helper once. Y points up and (0, 0) is the center.
 clear('#282c34')
 grid()
 axes()
@@ -53,13 +53,13 @@ poly(star, hsl(45, 95, 60), 'white', px(1))
 text('shapes', 0, -125, 'white', 20, 'center')
 fit(-230, -145, 480, 270)
 `
-	},
-	{
-		id: 'clock',
-		title: 'Clock',
-		group: 'Basics',
-		description: 'line, circle, text, animate: an analog clock.',
-		code: `// An analog clock showing the current time.
+  },
+  {
+    id: 'clock',
+    title: 'Clock',
+    group: 'Basics',
+    description: 'line, circle, text, animate: an analog clock.',
+    code: `// An analog clock showing the current time.
 fit(-130, -130, 260, 260)
 
 function hand(turns, length, color, width) {
@@ -91,13 +91,13 @@ animate(() => {
   circle(0, 0, 5, palette(3))
 })
 `
-	},
-	{
-		id: 'balls',
-		title: 'Bouncing balls',
-		group: 'Basics',
-		description: 'animate, random, mouse.clicked: gravity and bounces.',
-		code: `// Balls bouncing under gravity. Click to add one.
+  },
+  {
+    id: 'balls',
+    title: 'Bouncing balls',
+    group: 'Basics',
+    description: 'animate, random, mouse.clicked: gravity and bounces.',
+    code: `// Balls bouncing under gravity. Click to add one.
 const W = 300
 const H = 200
 const balls = []
@@ -140,13 +140,13 @@ animate((t, dt) => {
   }
 })
 `
-	},
-	{
-		id: 'solar',
-		title: 'Solar system',
-		group: 'Basics',
-		description: 'circle, text, toggle: planets on their orbits.',
-		code: `// Planets on circular orbits. Inner planets go around faster.
+  },
+  {
+    id: 'solar',
+    title: 'Solar system',
+    group: 'Basics',
+    description: 'circle, text, toggle: planets on their orbits.',
+    code: `// Planets on circular orbits. Inner planets go around faster.
 const planets = [
   { name: 'Mercury', r: 40, size: 4, color: '#b0a89f' },
   { name: 'Venus', r: 60, size: 7, color: '#e8c27a' },
@@ -178,13 +178,13 @@ animate((t, dt) => {
   })
 })
 `
-	},
-	{
-		id: 'plot',
-		title: 'Plot functions',
-		group: 'Math',
-		description: 'plot, slider, toggle: y = f(x) with live controls.',
-		code: `// Graphs of y = f(x). Without animate, the sketch re-runs when a control changes.
+  },
+  {
+    id: 'plot',
+    title: 'Plot functions',
+    group: 'Math',
+    description: 'plot, slider, toggle: y = f(x) with live controls.',
+    code: `// Graphs of y = f(x). Without animate, the sketch re-runs when a control changes.
 const amp = slider('amplitude', 0, 100, 50)
 const freq = slider('frequency', 5, 100, 30, 1)
 const showCos = toggle('cosine', true)
@@ -209,13 +209,13 @@ for (const [name, f, color] of curves) {
 
 fit(-300, -150, 600, 300)
 `
-	},
-	{
-		id: 'rose',
-		title: 'Polar rose',
-		group: 'Math',
-		description: 'plotPolar, plotParam: r = R cos(n/d theta), spinning.',
-		code: `// Polar roses r = R cos(k theta). With k = n / d the curve closes after d turns.
+  },
+  {
+    id: 'rose',
+    title: 'Polar rose',
+    group: 'Math',
+    description: 'plotPolar, plotParam: r = R cos(n/d theta), spinning.',
+    code: `// Polar roses r = R cos(k theta). With k = n / d the curve closes after d turns.
 const R = 130
 fit(-170, -170, 340, 340)
 
@@ -237,13 +237,13 @@ animate((t) => {
   point(x(a), y(a), 'white', 9)
 })
 `
-	},
-	{
-		id: 'lissajous',
-		title: 'Lissajous curve',
-		group: 'Math',
-		description: 'animate, plotParam, trail: x = sin(a t), y = sin(b t + phase).',
-		code: `// A Lissajous curve whose phase slowly drifts.
+  },
+  {
+    id: 'lissajous',
+    title: 'Lissajous curve',
+    group: 'Math',
+    description: 'animate, plotParam, trail: x = sin(a t), y = sin(b t + phase).',
+    code: `// A Lissajous curve whose phase slowly drifts.
 fit(-160, -160, 320, 320)
 
 animate((t) => {
@@ -262,13 +262,13 @@ animate((t) => {
   point(x(t), y(t), 'white', 10)
 })
 `
-	},
-	{
-		id: 'spirograph',
-		title: 'Spirograph',
-		group: 'Math',
-		description: 'plotParam, circle, line: a pen on a circle rolling inside another.',
-		code: `// A spirograph: a wheel of radius r rolls inside a ring of radius R,
+  },
+  {
+    id: 'spirograph',
+    title: 'Spirograph',
+    group: 'Math',
+    description: 'plotParam, circle, line: a pen on a circle rolling inside another.',
+    code: `// A spirograph: a wheel of radius r rolls inside a ring of radius R,
 // with a pen at distance d from the wheel's center.
 const R = 120
 const gcd = (a, b) => (b ? gcd(b, a % b) : a)
@@ -301,13 +301,13 @@ animate((t, dt) => {
   }
 })
 `
-	},
-	{
-		id: 'fourier',
-		title: 'Fourier series',
-		group: 'Math',
-		description: 'circle, line, polyline: a square wave from circles.',
-		code: `// A square wave built from circles: each one adds the next odd harmonic.
+  },
+  {
+    id: 'fourier',
+    title: 'Fourier series',
+    group: 'Math',
+    description: 'circle, line, polyline: a square wave from circles.',
+    code: `// A square wave built from circles: each one adds the next odd harmonic.
 const R = 70
 const wave = []
 fit(-110, -110, 420, 220)
@@ -338,13 +338,13 @@ animate((t) => {
   polyline(wave.map((v, i) => [110 + i, v]), palette(2), px(2))
 })
 `
-	},
-	{
-		id: 'waves',
-		title: 'Wave interference',
-		group: 'Math',
-		description: 'heat, drag: two wave sources you can move.',
-		code: `// Two wave sources interfering. Drag the sources around.
+  },
+  {
+    id: 'waves',
+    title: 'Wave interference',
+    group: 'Math',
+    description: 'heat, drag: two wave sources you can move.',
+    code: `// Two wave sources interfering. Drag the sources around.
 fit(-120, -90, 240, 180)
 
 animate((t) => {
@@ -358,13 +358,13 @@ animate((t) => {
   heat((x, y) => 0.5 + 0.25 * (wave(a, x, y) + wave(b, x, y)), 'coolwarm')
 })
 `
-	},
-	{
-		id: 'pendulum',
-		title: 'Double pendulum',
-		group: 'Math',
-		description: 'trail, button: two linked arms going chaotic.',
-		code: `// A double pendulum: two linked arms whose motion quickly turns chaotic.
+  },
+  {
+    id: 'pendulum',
+    title: 'Double pendulum',
+    group: 'Math',
+    description: 'trail, button: two linked arms going chaotic.',
+    code: `// A double pendulum: two linked arms whose motion quickly turns chaotic.
 const L = 100
 const g = 9.81
 let a1, a2, w1, w2
@@ -417,13 +417,13 @@ animate((t, dt) => {
   circle(x2, y2, 10, palette(5))
 })
 `
-	},
-	{
-		id: 'bezier',
-		title: 'Bezier curve',
-		group: 'Math',
-		description: 'drag, plotParam, lerp: drag the control points.',
-		code: `// A cubic Bezier curve. Drag the control points; move the slider to see how
+  },
+  {
+    id: 'bezier',
+    title: 'Bezier curve',
+    group: 'Math',
+    description: 'drag, plotParam, lerp: drag the control points.',
+    code: `// A cubic Bezier curve. Drag the control points; move the slider to see how
 // repeated in-between points find the point on the curve.
 const P = [
   drag('p0', -150, -60, 8, palette(0)),
@@ -460,13 +460,13 @@ point(x, y, palette(5), 12)
 
 fit(-200, -120, 400, 260)
 `
-	},
-	{
-		id: 'triangle',
-		title: 'Triangle centers',
-		group: 'Math',
-		description: 'drag, poly, circle: drag the corners and watch the Euler line.',
-		code: `// Drag the corners: the centroid G, circumcenter O and orthocenter H
+  },
+  {
+    id: 'triangle',
+    title: 'Triangle centers',
+    group: 'Math',
+    description: 'drag, poly, circle: drag the corners and watch the Euler line.',
+    code: `// Drag the corners: the centroid G, circumcenter O and orthocenter H
 // always lie on one line, the Euler line.
 const A = drag('A', -120, -70, 9, palette(0))
 const B = drag('B', 130, -50, 9, palette(1))
@@ -500,13 +500,13 @@ for (const [name, [x, y], color] of [['G', G, palette(5)], ['O', O, palette(3)],
 
 fit(-200, -150, 400, 300)
 `
-	},
-	{
-		id: 'phase',
-		title: 'Phase portrait',
-		group: 'Math',
-		description: 'field, trail, mouse.clicked: a damped pendulum in the (theta, omega) plane.',
-		code: `// Phase portrait of a damped pendulum: angle theta across, speed omega up.
+  },
+  {
+    id: 'phase',
+    title: 'Phase portrait',
+    group: 'Math',
+    description: 'field, trail, mouse.clicked: a damped pendulum in the (theta, omega) plane.',
+    code: `// Phase portrait of a damped pendulum: angle theta across, speed omega up.
 // Click to drop a particle.
 const S = 40
 const particles = [[-3, 2], [-1, 3], [2, -2.5], [3, 1], [0.5, -1], [-2.5, -1]].map(([th, om]) => ({ th, om }))
@@ -539,13 +539,13 @@ animate((t, dt) => {
   })
 })
 `
-	},
-	{
-		id: 'flow',
-		title: 'Flow field',
-		group: 'Math',
-		description: 'field, random: particles streaming through a swirling vector field.',
-		code: `// Particles streaming through a swirling vector field.
+  },
+  {
+    id: 'flow',
+    title: 'Flow field',
+    group: 'Math',
+    description: 'field, random: particles streaming through a swirling vector field.',
+    code: `// Particles streaming through a swirling vector field.
 fit(-300, -200, 600, 400)
 
 const spawn = (p) =>
@@ -580,13 +580,13 @@ animate((t, dt) => {
   }
 })
 `
-	},
-	{
-		id: 'mandelbrot',
-		title: 'Mandelbrot set',
-		group: 'Math',
-		description: 'heat, select: smooth escape-time coloring.',
-		code: `// The Mandelbrot set. Pan and zoom to explore.
+  },
+  {
+    id: 'mandelbrot',
+    title: 'Mandelbrot set',
+    group: 'Math',
+    description: 'heat, select: smooth escape-time coloring.',
+    code: `// The Mandelbrot set. Pan and zoom to explore.
 const ramp = select('ramp', ['magma', 'inferno', 'plasma', 'turbo', 'viridis', 'cividis', 'hot', 'vexel', 'gray'])
 const maxIter = slider('iterations', 20, 300, 80, 1)
 const cell = slider('cell size', 1, 12, 3, 1)
@@ -614,13 +614,13 @@ heat((x, y) => {
   return n >= maxIter ? 0 : sqrt(max(0, n) / maxIter)
 }, ramp, cell)
 `
-	},
-	{
-		id: 'metaballs',
-		title: 'Metaballs',
-		group: 'Math',
-		description: 'heat + contour: an implicit curve around moving blobs and the pointer.',
-		code: `// Metaballs: blobs that melt together as they move. One follows the pointer.
+  },
+  {
+    id: 'metaballs',
+    title: 'Metaballs',
+    group: 'Math',
+    description: 'heat + contour: an implicit curve around moving blobs and the pointer.',
+    code: `// Metaballs: blobs that melt together as they move. One follows the pointer.
 fit(-250, -170, 500, 340)
 
 animate((t) => {
@@ -642,13 +642,13 @@ animate((t) => {
   contour(strength, level * 2, 'rgba(255, 255, 255, 0.4)', px(1))
 })
 `
-	},
-	{
-		id: 'heatmap',
-		title: 'Heatmap from data',
-		group: 'Data',
-		description: 'rect, hsl, hover: a grid of [column, row, value] triples.',
-		code: `// A heatmap from [column, row, value] data. Hover a cell to read its value.
+  },
+  {
+    id: 'heatmap',
+    title: 'Heatmap from data',
+    group: 'Data',
+    description: 'rect, hsl, hover: a grid of [column, row, value] triples.',
+    code: `// A heatmap from [column, row, value] data. Hover a cell to read its value.
 const cols = 14
 const rows = 9
 const cell = 36
@@ -676,13 +676,13 @@ data.forEach(([c, r, v], i) => {
   }
 })
 `
-	},
-	{
-		id: 'charts',
-		title: 'Bars and histogram',
-		group: 'Data',
-		description: 'bars, hist: charts from plain arrays.',
-		code: `// A histogram of random samples, and a bar chart next to it.
+  },
+  {
+    id: 'charts',
+    title: 'Bars and histogram',
+    group: 'Data',
+    description: 'bars, hist: charts from plain arrays.',
+    code: `// A histogram of random samples, and a bar chart next to it.
 const bins = slider('bins', 5, 40, 20, 1)
 const samples = range(600).map(() => gauss(100, 30))
 const sales = [30, 80, 55, 95, 60]
@@ -702,13 +702,13 @@ ctx.restore()
 
 fit(-10, -20, 390, 150)
 `
-	},
-	{
-		id: 'scatter',
-		title: 'Scatter plot',
-		group: 'Data',
-		description: 'scatter, random, gauss: a spiral galaxy of dots colored by value.',
-		code: `// A two-armed spiral galaxy, colored by distance from the core.
+  },
+  {
+    id: 'scatter',
+    title: 'Scatter plot',
+    group: 'Data',
+    description: 'scatter, random, gauss: a spiral galaxy of dots colored by value.',
+    code: `// A two-armed spiral galaxy, colored by distance from the core.
 const ramp = select('ramp', ['turbo', 'viridis', 'plasma', 'inferno', 'cividis', 'hot', 'coolwarm', 'vexel', 'gray'])
 const count = slider('stars', 200, 4000, 2000, 50)
 const twist = slider('twist', 0, 6, 3, 0.1)
@@ -723,13 +723,13 @@ clear('#14161b')
 scatter(stars, ramp, 3)
 fit(...bounds(stars))
 `
-	},
-	{
-		id: 'donut',
-		title: 'Donut chart',
-		group: 'Data',
-		description: 'poly, linspace, text: slices that pop out on hover.',
-		code: `// A donut chart. Hover a slice to pull it out.
+  },
+  {
+    id: 'donut',
+    title: 'Donut chart',
+    group: 'Data',
+    description: 'poly, linspace, text: slices that pop out on hover.',
+    code: `// A donut chart. Hover a slice to pull it out.
 const data = [
   ['Rent', 1200],
   ['Food', 450],
@@ -773,13 +773,13 @@ animate(() => {
   })
 })
 `
-	},
-	{
-		id: 'sort',
-		title: 'Bubble sort',
-		group: 'Data',
-		description: 'bars, button, random: watch a list get sorted.',
-		code: `// Bubble sort: compare neighbors and swap them until every bar is in order.
+  },
+  {
+    id: 'sort',
+    title: 'Bubble sort',
+    group: 'Data',
+    description: 'bars, button, random: watch a list get sorted.',
+    code: `// Bubble sort: compare neighbors and swap them until every bar is in order.
 const N = 40
 let values, pass, j, done
 
@@ -832,13 +832,13 @@ animate(() => {
   text(done ? 'sorted!' : 'pass ' + (pass + 1), 0, -8, '#aab0c4', 10)
 })
 `
-	},
-	{
-		id: 'tree',
-		title: 'Fractal tree',
-		group: 'Generative',
-		description: 'line, slider: a recursive tree swaying in the wind.',
-		code: `// A fractal tree: every branch splits into two smaller ones.
+  },
+  {
+    id: 'tree',
+    title: 'Fractal tree',
+    group: 'Generative',
+    description: 'line, slider: a recursive tree swaying in the wind.',
+    code: `// A fractal tree: every branch splits into two smaller ones.
 fit(-200, -160, 400, 330)
 
 animate((t) => {
@@ -866,13 +866,13 @@ animate((t) => {
   branch(0, -150, PI / 2, 90, 1)
 })
 `
-	},
-	{
-		id: 'walk',
-		title: 'Random walks',
-		group: 'Generative',
-		description: 'random, seed, polyline: wandering paths.',
-		code: `// Random walks: each step goes the same distance in a random direction.
+  },
+  {
+    id: 'walk',
+    title: 'Random walks',
+    group: 'Generative',
+    description: 'random, seed, polyline: wandering paths.',
+    code: `// Random walks: each step goes the same distance in a random direction.
 const walkers = slider('walkers', 1, 12, 6, 1)
 const steps = slider('steps', 100, 3000, 1000, 100)
 seed(slider('seed', 1, 100, 1, 1))
@@ -897,13 +897,13 @@ for (let w = 0; w < walkers; w++) {
 point(0, 0, 'white', 10)
 fit(-250, -250, 500, 500)
 `
-	},
-	{
-		id: 'stars',
-		title: 'Starfield',
-		group: 'Generative',
-		description: 'line, random: flying through space.',
-		code: `// Flying through a field of stars.
+  },
+  {
+    id: 'stars',
+    title: 'Starfield',
+    group: 'Generative',
+    description: 'line, random: flying through space.',
+    code: `// Flying through a field of stars.
 const stars = range(400).map(() => ({ x: random(-1, 1), y: random(-1, 1), z: random() }))
 const project = (s, z) => [(s.x / z) * 150, (s.y / z) * 150]
 
@@ -926,13 +926,13 @@ animate((t, dt) => {
   }
 })
 `
-	},
-	{
-		id: 'koch',
-		title: 'Koch snowflake',
-		group: 'Generative',
-		description: 'poly, recursion: a fractal edge.',
-		code: `// The Koch snowflake: replace the middle third of every edge with a spike, again and again.
+  },
+  {
+    id: 'koch',
+    title: 'Koch snowflake',
+    group: 'Generative',
+    description: 'poly, recursion: a fractal edge.',
+    code: `// The Koch snowflake: replace the middle third of every edge with a spike, again and again.
 const depth = slider('depth', 0, 6, 4, 1)
 
 const rotate = ([x, y], a) => [x * cos(a) - y * sin(a), x * sin(a) + y * cos(a)]
@@ -958,13 +958,13 @@ poly(outline, 'rgba(91, 108, 240, 0.25)', '#9fb4ff', px(1.5))
 hud(outline.length + ' edges')
 fit(-160, -130, 320, 300)
 `
-	},
-	{
-		id: 'keys',
-		title: 'Collect the coins',
-		group: 'Interactive',
-		description: 'key, random, ellipse: a tiny arrow-key game.',
-		code: `// Collect the coins with the arrow keys or WASD. Click the preview first.
+  },
+  {
+    id: 'keys',
+    title: 'Collect the coins',
+    group: 'Interactive',
+    description: 'key, random, ellipse: a tiny arrow-key game.',
+    code: `// Collect the coins with the arrow keys or WASD. Click the preview first.
 const place = () => [random(-260, 260), random(-170, 170)]
 const clamp = (v, lo, hi) => min(hi, max(lo, v))
 const axis = (plus, minus) => (plus ? 1 : 0) - (minus ? 1 : 0)
@@ -1004,13 +1004,13 @@ animate((t, dt) => {
   hud('score: ' + score)
 })
 `
-	},
-	{
-		id: 'mines',
-		title: 'Mines',
-		group: 'Interactive',
-		description: 'mouse.clicked, button, key, lockView: a minesweeping puzzle.',
-		code: `// Open every safe cell without hitting a mine. Numbers count the mines around.
+  },
+  {
+    id: 'mines',
+    title: 'Mines',
+    group: 'Interactive',
+    description: 'mouse.clicked, button, key, lockView: a minesweeping puzzle.',
+    code: `// Open every safe cell without hitting a mine. Numbers count the mines around.
 // Click to open a cell; hold F or Shift while clicking to flag it.
 const W = 12
 const H = 10
@@ -1117,13 +1117,13 @@ animate(() => {
   }
 })
 `
-	},
-	{
-		id: 'life',
-		title: 'Game of Life',
-		group: 'Interactive',
-		description: 'every, button, toggle, mouse.clicked: cells that live and die.',
-		code: `// Conway's Game of Life. Click cells to flip them.
+  },
+  {
+    id: 'life',
+    title: 'Game of Life',
+    group: 'Interactive',
+    description: 'every, button, toggle, mouse.clicked: cells that live and die.',
+    code: `// Conway's Game of Life. Click cells to flip them.
 const W = 40
 const H = 26
 const S = 10
@@ -1186,13 +1186,13 @@ animate(() => {
   })
 })
 `
-	},
-	{
-		id: 'snake',
-		title: 'Snake',
-		group: 'Interactive',
-		description: 'key, slider, lockView: a grid snake with fixed-step movement.',
-		code: `// Steer with the arrow keys or WASD, eat the food, avoid walls and your own tail.
+  },
+  {
+    id: 'snake',
+    title: 'Snake',
+    group: 'Interactive',
+    description: 'key, slider, lockView: a grid snake with fixed-step movement.',
+    code: `// Steer with the arrow keys or WASD, eat the food, avoid walls and your own tail.
 // Click the preview first. Space restarts.
 const W = 24
 const H = 16
@@ -1279,13 +1279,13 @@ animate((t, dt) => {
   }
 })
 `
-	},
-	{
-		id: 'pong',
-		title: 'Pong',
-		group: 'Interactive',
-		description: 'mouse, lockView: paddle versus computer.',
-		code: `// Pong against the computer. Move your paddle (left) with the mouse.
+  },
+  {
+    id: 'pong',
+    title: 'Pong',
+    group: 'Interactive',
+    description: 'mouse, lockView: paddle versus computer.',
+    code: `// Pong against the computer. Move your paddle (left) with the mouse.
 const W = 300
 const H = 180
 const PADDLE = 40
@@ -1351,13 +1351,13 @@ animate((t, dt) => {
   text(you + ' : ' + cpu, 0, -H - 20, 'white', 18, 'center')
 })
 `
-	},
-	{
-		id: 'paint',
-		title: 'Kaleidoscope paint',
-		group: 'Interactive',
-		description: 'mouse, button, polyline: draw with rainbow ink and mirror symmetry.',
-		code: `// Draw with the mouse; every stroke is repeated around the center.
+  },
+  {
+    id: 'paint',
+    title: 'Kaleidoscope paint',
+    group: 'Interactive',
+    description: 'mouse, button, polyline: draw with rainbow ink and mirror symmetry.',
+    code: `// Draw with the mouse; every stroke is repeated around the center.
 // Hold Space and drag to pan.
 const strokes = []
 let current = null
@@ -1401,7 +1401,7 @@ animate((t) => {
   }
 })
 `
-	}
+  }
 ];
 
 export const EXAMPLE_GROUPS = [...new Set(EXAMPLES.map((e) => e.group))];
