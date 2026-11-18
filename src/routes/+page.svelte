@@ -8,8 +8,13 @@
   import { DEFAULT_CODE } from '../lib/runtime';
   import { EXAMPLES } from '../lib/examples';
   import Examples from '../lib/Examples.svelte';
+  import { decodeCode, embedCode, isEmbed, sharedData, shareUrl } from '../lib/share';
 
   const STORAGE_KEY = 'vexel:v1';
+  // The user's own code, kept when a share link replaced it, so it can be restored.
+  const BEFORE_SHARE_KEY = 'vexel:before-share';
+  // Links longer than this may be cut off by chat apps and some browsers.
+  const LONG_LINK = 8000;
   const DEBOUNCE_MS = 350;
 
   let code = $state(DEFAULT_CODE);
@@ -38,24 +43,98 @@
   let helpOpen = $state(false);
 
   let timer: ReturnType<typeof setTimeout> | undefined;
-  let container: HTMLDivElement;
+  let container = $state<HTMLDivElement>();
+
+  // ?embed shows only the preview of a shared sketch and never touches the saved code.
+  let embed = $state(false);
+  let editUrl = $state('');
+  // Shown above the editor after opening a share link.
+  let notice = $state<'opened' | 'broken' | null>(null);
+  let shareOpen = $state(false);
+  let toast = $state<string | null>(null);
+  let toastTimer: ReturnType<typeof setTimeout> | undefined;
 
   onMount(() => {
+    embed = isEmbed();
+    let savedCode: string | null = null;
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null');
-      if (saved) {
-        if (typeof saved.code === 'string') code = appliedCode = saved.code;
+      if (saved && !embed) {
+        if (typeof saved.code === 'string') savedCode = code = appliedCode = saved.code;
 
         if (Number.isFinite(saved.splitPct)) splitPct = saved.splitPct;
       }
     } catch {
       // Ignore corrupt saved state.
     }
-    loaded = true;
+
+    openShared(savedCode).finally(() => (loaded = true));
   });
 
+  // Opens the sketch in the URL fragment, if any. The user's own code (current) is kept
+  // aside first so the banner can bring it back.
+  async function openShared(current: string | null) {
+    const data = sharedData();
+    if (!data) return;
+    try {
+      const shared = await decodeCode(data);
+      if (!embed && current !== null && current !== shared && !isPristine(current)) {
+        localStorage.setItem(BEFORE_SHARE_KEY, current);
+        notice = 'opened';
+      }
+      code = appliedCode = shared;
+      runId++;
+      if (embed) editUrl = await shareUrl(shared);
+    } catch {
+      notice = 'broken';
+    }
+    // Drop the fragment so a reload keeps later edits instead of reopening the link.
+    if (!embed) history.replaceState(null, '', location.pathname + location.search);
+  }
+
+  // A share link pasted into the address bar of an open Vexel tab only changes the fragment.
+  function onHashChange() {
+    if (sharedData()) openShared(code);
+  }
+
+  function restoreBeforeShare() {
+    const previous = localStorage.getItem(BEFORE_SHARE_KEY);
+    if (previous !== null) {
+      code = previous;
+      run();
+    }
+    dismissNotice();
+  }
+
+  function dismissNotice() {
+    notice = null;
+    localStorage.removeItem(BEFORE_SHARE_KEY);
+  }
+
+  function showToast(text: string) {
+    toast = text;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => (toast = null), 3500);
+  }
+
+  async function copyShare(kind: 'link' | 'embed') {
+    shareOpen = false;
+    const text = kind === 'link' ? await shareUrl(code) : await embedCode(code);
+    const what = kind === 'link' ? 'Link' : 'Embed code';
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast(
+        text.length > LONG_LINK
+          ? what + ' copied. It is long (' + text.length + ' characters), so some apps may cut it off.'
+          : what + ' copied to the clipboard.'
+      );
+    } catch {
+      prompt('Copy the ' + what.toLowerCase() + ':', text);
+    }
+  }
+
   $effect(() => {
-    if (!loaded) return;
+    if (!loaded || embed) return;
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ code, splitPct }));
   });
 
@@ -80,13 +159,12 @@
 
   // Loading an example replaces the editor, so ask first unless the code is untouched
   // (blank, the default sketch, or an unedited example).
+  function isPristine(c: string) {
+    return c.trim() === '' || c === DEFAULT_CODE || c === lastLoaded || EXAMPLES.some((x) => x.code === c);
+  }
+
   function loadCode(newCode: string, name: string) {
-    const pristine =
-      code.trim() === '' ||
-      code === DEFAULT_CODE ||
-      code === lastLoaded ||
-      EXAMPLES.some((x) => x.code === code);
-    if (!pristine && !confirm('Replace the current code with the "' + name + '" example?')) return;
+    if (!isPristine(code) && !confirm('Replace the current code with the "' + name + '" example?')) return;
     code = lastLoaded = newCode;
     run();
   }
@@ -99,7 +177,7 @@
   }
 
   function moveResize(e: PointerEvent) {
-    if (!resizing) return;
+    if (!resizing || !container) return;
     const r = container.getBoundingClientRect();
     splitPct = Math.min(80, Math.max(20, ((e.clientX - r.left) / r.width) * 100));
   }
@@ -109,14 +187,21 @@
   }
 
   function onWindowKeyDown(e: KeyboardEvent) {
-    if (e.key === 'F1') {
+    if (e.key === 'Escape') shareOpen = false;
+    if (e.key === 'F1' && !embed) {
       e.preventDefault();
       helpOpen = true;
     }
   }
 </script>
 
-<svelte:window onkeydown={onWindowKeyDown} />
+<svelte:window
+  onkeydown={onWindowKeyDown}
+  onhashchange={onHashChange}
+  onpointerdown={(e) => {
+    if (shareOpen && !(e.target as Element).closest('.share')) shareOpen = false;
+  }}
+/>
 
 <Help bind:open={helpOpen} onload={loadCode} />
 
@@ -124,6 +209,50 @@
   <title>Vexel — live coding graphics</title>
 </svelte:head>
 
+{#snippet shareButton()}
+  <div class="share">
+    <button
+      class="icon"
+      onclick={() => (shareOpen = !shareOpen)}
+      title="Share: copy a link or embed code for this sketch"
+      aria-label="Share"
+      aria-expanded={shareOpen}
+    >
+      <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+        <path
+          d="M6.6 9.4a2.6 2.6 0 0 0 3.7 0l2.4-2.4a2.6 2.6 0 0 0-3.7-3.7l-.9.9M9.4 6.6a2.6 2.6 0 0 0-3.7 0L3.3 9a2.6 2.6 0 0 0 3.7 3.7l.9-.9"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+        />
+      </svg>
+    </button>
+    {#if shareOpen}
+      <div class="menu" role="menu">
+        <button role="menuitem" onclick={() => copyShare('link')}>
+          Copy link<small>Opens this code in Vexel</small>
+        </button>
+        <button role="menuitem" onclick={() => copyShare('embed')}>
+          Copy embed code<small>An iframe showing only the preview</small>
+        </button>
+      </div>
+    {/if}
+  </div>
+{/snippet}
+
+{#if embed}
+  <div class="embed">
+    {#if loaded}
+      <Preview code={appliedCode} {runId} onerror={(e) => (error = e)} {onlog} onreset={() => (logs = [])} embed {editUrl} />
+    {/if}
+    {#if notice === 'broken'}
+      <pre class="error embed-error" role="alert">This share link is damaged and could not be opened.</pre>
+    {:else if error}
+      <pre class="error embed-error" role="alert">{error.line ? 'Line ' + error.line + ': ' : ''}{error.message}</pre>
+    {/if}
+  </div>
+{:else}
 <div class="app" bind:this={container} class:resizing>
   <section class="left" style:width="{splitPct}%">
     <header>
@@ -153,6 +282,18 @@
         </button>
       </div>
     </header>
+    {#if notice === 'opened'}
+      <div class="notice">
+        <span>Opened a shared sketch. Your previous code was kept aside.</span>
+        <button onclick={restoreBeforeShare}>Restore my code</button>
+        <button class="icon" onclick={dismissNotice} aria-label="Dismiss">✕</button>
+      </div>
+    {:else if notice === 'broken'}
+      <div class="notice">
+        <span>This share link is damaged and could not be opened.</span>
+        <button class="icon" onclick={() => (notice = null)} aria-label="Dismiss">✕</button>
+      </div>
+    {/if}
     <div class="editor-wrap">
       <Editor value={code} onchange={onEdit} onrun={run} {error} />
     </div>
@@ -177,10 +318,15 @@
     <!-- Wait for the saved code: starting the default sketch and then replacing it
          right away raced, leaving a stale or empty preview after a refresh. -->
     {#if loaded}
-      <Preview code={appliedCode} {runId} onerror={(e) => (error = e)} {onlog} onreset={() => (logs = [])} />
+      <Preview code={appliedCode} {runId} onerror={(e) => (error = e)} {onlog} onreset={() => (logs = [])} extraTools={shareButton} />
     {/if}
   </section>
 </div>
+{/if}
+
+{#if toast}
+  <div class="toast" role="status">{toast}</div>
+{/if}
 
 <style>
   .app {
@@ -260,6 +406,84 @@
     border-top: 1px solid #6b2a33;
     font: 12px/1.5 ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
     white-space: pre-wrap;
+  }
+  .share {
+    position: relative;
+  }
+  /* Same size as the preview toolbar buttons it sits next to. */
+  .share > button.icon {
+    padding: 4px 8px;
+  }
+  .menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    min-width: 240px;
+    padding: 4px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  }
+  .menu button {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding: 6px 10px;
+    text-align: left;
+    background: none;
+    border: 1px solid transparent;
+  }
+  .menu button:hover {
+    background: var(--bg);
+    border-color: var(--border);
+  }
+  .menu small {
+    color: var(--muted);
+    font-size: 11px;
+  }
+  .notice {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    font-size: 13px;
+    background: rgba(245, 184, 61, 0.12);
+    border-bottom: 1px solid var(--border);
+  }
+  .notice span {
+    flex: 1;
+  }
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 40px;
+    z-index: 30;
+    transform: translateX(-50%);
+    max-width: min(520px, 90vw);
+    padding: 8px 14px;
+    font-size: 13px;
+    color: var(--text);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  }
+  .embed {
+    position: relative;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+  }
+  .embed-error {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
   }
   .divider {
     width: 5px;

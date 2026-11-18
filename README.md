@@ -25,6 +25,7 @@ Vexel is an installable PWA. When served over HTTPS (or from `localhost`), the b
 - Call `animate((t, dt) => { ... })` to draw every frame, or `animate(fn, 0.5)` to call it every half second. Without `animate`, the code re-runs whenever the view changes.
 - The sketch runs in a sandboxed iframe. Errors show below the editor, and your code is saved in the browser automatically.
 - **Screenshot** (the camera button above the preview) saves the sketch as a PNG with a small Vexel badge in the corner; `screenshot()` does the same from code.
+- **Share** (the link button above the editor) copies a link that opens your code in Vexel, or embed code for another page. The code travels inside the link itself (compressed, after the `#`), so nothing is uploaded. Opening a link over your own work keeps your code aside with a one-click restore. Embeds (`?embed`) show only the preview with an "Edit in Vexel" link and never change the viewer's saved code.
 - **Export HTML** (the download button above the preview) downloads a self-contained page with its own pan, zoom, sliders and helpers.
 - The **Examples** menu loads ready-made sketches (shapes, plots, a phase portrait, the Mandelbrot set, charts, interactive toys). Their comments explain the helpers they use.
 - The in-app **Help** has every helper with an example and a ▶ button that loads it into the editor and runs it, `Ctrl + Space` autocompletes them, and resting the pointer on a helper's name in the editor shows its docs and example.

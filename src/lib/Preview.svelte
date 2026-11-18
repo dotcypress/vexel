@@ -1,15 +1,19 @@
 <script lang="ts">
-  import { onMount, untrack } from 'svelte';
+  import { onMount, untrack, type Snippet } from 'svelte';
   import { buildPreviewDoc, MAX_ZOOM, MIN_ZOOM, PROJECT_URL } from './runtime';
   import type { LogLevel } from './Console.svelte';
   import type { SketchError } from './Editor.svelte';
+  import logo from './assets/logo.svg';
 
   let {
     code,
     runId,
     onerror,
     onlog,
-    onreset
+    onreset,
+    embed = false,
+    editUrl = '',
+    extraTools
   }: {
     code: string;
     runId: number;
@@ -19,6 +23,11 @@
     onlog: (entries: { level: LogLevel; text: string }[]) => void;
     /** A new run is starting; previous output is stale. */
     onreset: () => void;
+    /** Embedded in another page: only the sketch, with an "Edit in Vexel" link to editUrl. */
+    embed?: boolean;
+    editUrl?: string;
+    /** More toolbar buttons, shown after Export HTML. */
+    extraTools?: Snippet;
   } = $props();
 
   const LOG_LEVELS = new Set(['log', 'info', 'warn', 'error']);
@@ -445,6 +454,7 @@
 </script>
 
 <div class="preview">
+  {#if !embed}
   <div class="toolbar">
     <div class="group">
       {#if !locked.zoom}
@@ -508,8 +518,11 @@
           />
         </svg>
       </button>
+      {@render extraTools?.()}
     </div>
   </div>
+
+  {/if}
 
   <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
   <div
@@ -556,6 +569,12 @@
 
   </div>
 
+  {#if embed}
+    <a class="edit-badge" href={editUrl || PROJECT_URL} target="_blank" rel="noopener noreferrer" title="Open this sketch in the Vexel editor">
+      <img src={logo} alt="" width="14" height="14" />
+      Edit in Vexel
+    </a>
+  {:else}
   <div class="hint">
     <span
       >Wheel / middle or right drag / Space+drag to pan · Pinch or Ctrl+wheel to zoom · Alt/Option+drag
@@ -571,6 +590,7 @@
       Source code
     </a>
   </div>
+  {/if}
 </div>
 
 <style>
@@ -674,6 +694,30 @@
     font-variant-numeric: tabular-nums;
   }
 
+  .preview {
+    position: relative;
+  }
+  .edit-badge {
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    color: var(--text);
+    font: 600 12px/1 system-ui, -apple-system, 'Segoe UI', sans-serif;
+    text-decoration: none;
+    background: rgba(21, 23, 30, 0.8);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    opacity: 0.75;
+  }
+  .edit-badge:hover {
+    opacity: 1;
+    border-color: var(--accent);
+  }
   .hint {
     box-sizing: border-box;
     height: var(--bottom-bar-height);
