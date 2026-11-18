@@ -533,6 +533,30 @@ export const SKETCH: Completion[] = [
     "name, value?, step?, min?, max?",
     "Adds a number field: click - or + to step, drag to scrub. Returns its value.",
     "number(\"${name}\", ${0})"
+  ),
+  fn(
+    "file",
+    "name, format?",
+    "A file control: pick or drop a CSV, TSV, JSON or text file. Returns the parsed data, or null until there is one.",
+    "file(\"${name}\")"
+  ),
+  fn(
+    "load",
+    "url, format?, { every? }",
+    "Fetches and parses a URL; null while loading. { every: seconds } refreshes it. Needs a CORS-enabled server.",
+    "load(\"${url}\")"
+  ),
+  fn(
+    "csvParse",
+    "text, { header?, delimiter?, typed? }",
+    "Parses CSV text into objects (with .columns), or arrays with header: false. Numbers and booleans are converted.",
+    "csvParse(${text})"
+  ),
+  fn(
+    "parse",
+    "text, format, options?",
+    "Parses text as 'json', 'csv', 'tsv', 'text' or 'lines'.",
+    "parse(${text}, \"${json}\")"
   )
 ];
 

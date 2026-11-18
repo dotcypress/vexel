@@ -537,6 +537,32 @@
       ]
     },
     {
+      title: 'Data',
+      note: "file and load return null until the data is there, then the sketch runs again, so start with: if (!rows) return hud('loading'). Formats come from the file extension: .csv, .tsv, .json and .txt; pass format ('csv', 'tsv', 'json', 'text' or 'lines') to override. CSV rows become objects keyed by the header, numbers and true/false are converted, and empty cells become null. Files up to 20 MB.",
+      helpers: [
+        {
+          signature: "file(name, format?)",
+          text: "Adds a file row to the control panel and returns the parsed data, or null until a file is chosen. Click the row to pick a file, or drop one onto the preview; the \u00d7 clears it. The file stays with the sketch across edits and reloads, and Export HTML includes it. Nothing is uploaded.",
+          example: "const rows = file('data')\nif (!rows) return hud('click \"data\" or drop a CSV file')\nhud(rows.length + ' rows', 'columns: ' + rows.columns.join(', '))"
+        },
+        {
+          signature: "load(url, format?, { every? })",
+          text: "Fetches a URL once and returns the parsed data, or null while it loads; the sketch runs again when it arrives. { every: seconds } fetches it again on that interval for live data, keeping the last result in between. The server must allow cross-origin requests (raw GitHub files and most public APIs do). Errors go to the console.",
+          example: "const rows = load('https://raw.githubusercontent.com/vega/vega-datasets/main/data/seattle-weather.csv')\nif (!rows) return hud('loading...')\nclear('#282c34')\naxes({ xLabel: 'day', yLabel: 'max temp' })\npolyline(rows.map((r, i) => [i / 4, r.temp_max * 5]), palette(0), px(1.5))"
+        },
+        {
+          signature: "csvParse(text, { header?, delimiter?, typed? })",
+          text: "Parses CSV text. With a header (default) rows are objects and the result has .columns; header: false gives arrays. The delimiter (comma, semicolon or tab) is detected; typed: false keeps every cell as a string. Handles quotes, doubled \"\" and line breaks inside quotes.",
+          example: "const rows = csvParse('name,score\\nAda,92\\nLin,78\\nSam,85')\nbars(rows.map((r) => r.score), 30, (i) => palette(i))\nrows.forEach((r, i) => label(r.name, i * 30 + 15, -10, 'white', 12, 'center'))"
+        },
+        {
+          signature: "parse(text, format, options?)",
+          text: "Parses text as 'json', 'csv', 'tsv', 'text' or 'lines' (an array of lines). Invalid JSON reports the line and column.",
+          example: "const words = parse('apple\\nbanana\\ncherry', 'lines')\nwords.forEach((w, i) => label(w, 0, -i * 20, palette(i), 14))"
+        }
+      ]
+    },
+    {
       title: 'Output',
       helpers: [
         {

@@ -33,6 +33,66 @@
 
   // Latest value of each slider() reported by the sketch, by name.
   const sliderValues: Record<string, number> = {};
+
+  // Data files picked or dropped for the sketch's file() controls, by control name. They are
+  // kept in localStorage (when they fit) so they survive reloads, and embedded in exports.
+  type DataFile = { fileName: string; text: string };
+  const FILES_KEY = 'vexel-files';
+  const MAX_FILE = 20 * 1024 * 1024;
+  let files: Record<string, DataFile> = loadFiles();
+  let dropping = $state(false);
+
+  function loadFiles(): Record<string, DataFile> {
+    try {
+      const saved = JSON.parse(localStorage.getItem(FILES_KEY) ?? '{}');
+      return saved && typeof saved === 'object' ? saved : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function storeFile(name: string, file: DataFile | null) {
+    if (file) files[name] = file;
+    else delete files[name];
+    try {
+      localStorage.setItem(FILES_KEY, JSON.stringify(files));
+    } catch {
+      onlog([{ level: 'warn', text: `file: '${name}' is too big to keep after a reload; it stays until you close the page.` }]);
+    }
+  }
+
+  async function sendFile(file: File, name: string | null) {
+    if (file.size > MAX_FILE) {
+      onlog([{ level: 'error', text: `file: ${file.name} is larger than 20 MB` }]);
+      return;
+    }
+    const text = await file.text();
+    frame?.contentWindow?.postMessage({ source: 'vexel', type: 'file', name, fileName: file.name, text }, '*');
+  }
+
+  function pickFile(name: string, accept: string) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = accept;
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (file) sendFile(file, name);
+    };
+    input.click();
+  }
+
+  function onDragOver(e: DragEvent) {
+    if (!e.dataTransfer?.types.includes('Files')) return;
+    e.preventDefault();
+    dropping = true;
+  }
+
+  function onDrop(e: DragEvent) {
+    e.preventDefault();
+    dropping = false;
+    const file = e.dataTransfer?.files[0];
+    if (file) sendFile(file, null);
+  }
   // Cursor the sketch asks for while the pointer is over a drag() handle.
   let sketchCursor = $state('');
 
@@ -76,7 +136,7 @@
 
   // Download the sketch as a self-contained page that runs without the app.
   function exportHtml() {
-    const html = buildPreviewDoc(code, { standalone: true, zoom, sliders: sliderValues });
+    const html = buildPreviewDoc(code, { standalone: true, zoom, sliders: sliderValues, files });
     const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
     const a = document.createElement('a');
     a.href = url;
@@ -294,6 +354,7 @@
       locked = { pan: false, zoom: false };
       // Every edit reloads the sketch; hand back slider values so they survive.
       frame?.contentWindow?.postMessage({ source: 'vexel', type: 'sliders', values: sliderValues }, '*');
+      frame?.contentWindow?.postMessage({ source: 'vexel', type: 'files', files }, '*');
       sendCamera(panX, panY, zoom);
     } else if (d.type === 'camera') {
       // The sketch asked for a new view (fit); adopt it.
@@ -317,6 +378,13 @@
       locked = { pan: d.pan === true, zoom: d.zoom === true };
     } else if (d.type === 'cursor') {
       sketchCursor = d.cursor === 'grab' || d.cursor === 'grabbing' ? d.cursor : '';
+    } else if (d.type === 'pickfile') {
+      pickFile(String(d.name), String(d.accept ?? ''));
+    } else if (d.type === 'filestore') {
+      storeFile(
+        String(d.name),
+        typeof d.text === 'string' ? { fileName: String(d.fileName), text: d.text } : null
+      );
     } else if (d.type === 'screenshot') {
       saveScreenshot(d.url, d.name);
     } else if (d.type === 'error') {
@@ -455,6 +523,10 @@
     onkeyup={onKeyUp}
     onblur={onBlur}
     oncontextmenu={(e) => e.preventDefault()}
+    ondragover={onDragOver}
+    ondragleave={() => (dropping = false)}
+    ondrop={onDrop}
+    class:dropping
   >
     <iframe bind:this={frame} title="Preview" sandbox="allow-scripts" srcdoc={doc}></iframe>
 
@@ -558,6 +630,9 @@
   }
   .viewport.dragging {
     cursor: grabbing;
+  }
+  .viewport.dropping {
+    box-shadow: inset 0 0 0 2px var(--accent);
   }
   iframe {
     position: absolute;

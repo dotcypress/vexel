@@ -757,6 +757,49 @@ fit(...bounds(stars))
 `
   },
   {
+    id: 'csv',
+    title: 'CSV explorer',
+    group: 'Data',
+    description: 'file, select, axes: drop a CSV and plot any two columns.',
+    code: `// Drop a CSV file onto the preview, or click "data" in the panel, then pick two columns.
+// Until then it shows a made-up weather sample.
+const sample = range(120).map((day) => ({
+  day,
+  temp: round(12 + 9 * sin(day / 19) + gauss(0, 1.5), 1),
+  rain: round(max(0, gauss(2, 3)), 1),
+  wind: round(abs(gauss(15, 6)), 1)
+}))
+sample.columns = ['day', 'temp', 'rain', 'wind']
+
+const rows = file('data') ?? sample
+if (!rows.columns) {
+  return hud('that file is not a table: try a CSV or TSV file')
+}
+
+// Only columns with numbers can be plotted.
+const numeric = rows.columns.filter((c) => rows.some((r) => typeof r[c] === 'number'))
+if (numeric.length < 2) {
+  return hud('need at least two columns with numbers')
+}
+const xCol = select('x', numeric, numeric[0])
+const yCol = select('y', numeric, numeric[1])
+const style = select('style', ['dots', 'line'])
+
+const pts = rows
+  .filter((r) => typeof r[xCol] === 'number' && typeof r[yCol] === 'number')
+  .map((r) => [r[xCol], r[yCol]])
+
+clear('#282c34')
+axes({ xLabel: xCol, yLabel: yCol })
+if (style === 'line') {
+  polyline(pts, palette(0), px(2))
+} else {
+  points(pts, palette(0), px(6))
+}
+fit(...bounds(pts))
+`
+  },
+  {
     id: 'donut',
     title: 'Donut chart',
     group: 'Data',

@@ -150,6 +150,17 @@ Ramps for `heat` and `scatter`: `'viridis'` (default), `'magma'`, `'inferno'`, `
 | `gauss(mean?, sd?)` | Seeded normally distributed number (default mean 0, sd 1). |
 | `once(fn, key?)` | Call `fn` the first time, then return its cached result on later frames and re-runs. |
 
+**Data**
+
+| Helper | Description |
+|---|---|
+| `file(name, format?)` | File control: pick or drop a CSV, TSV, JSON or text file; returns the parsed data, or `null` until there is one. Kept across reloads and included in exports. |
+| `load(url, format?, { every? })` | Fetch and parse a URL; `null` while loading. `{ every: seconds }` refreshes it. The server must allow cross-origin requests. |
+| `csvParse(text, { header?, delimiter?, typed? })` | CSV text to objects (with `.columns`) or arrays; numbers and booleans are converted. |
+| `parse(text, format, options?)` | Parse `'json'`, `'csv'`, `'tsv'`, `'text'` or `'lines'`. |
+
+Data helpers return `null` until the data arrives and then re-run the sketch, so start with `if (!rows) return hud('loading')`.
+
 **Interaction and overlays**
 
 | Helper | Description |

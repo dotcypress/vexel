@@ -1273,6 +1273,7 @@ function controlHeight(c) {
   if (c.kind === 'pad') return PAD_ROW;
   if (c.kind === 'swatch') return SWATCH_ROW;
   if (c.kind === 'number') return NUMBER_ROW;
+  if (c.kind === 'file') return FILE_ROW;
   return c.kind === 'select' ? SELECT_ROW : SLIDER_ROW;
 }
 
@@ -1302,6 +1303,12 @@ function updateSliders() {
           sliders[i].value = sliders[i].value ? 0 : 1;
           dirty = true;
           post({ source: 'vexel', type: 'slider', name: sliders[i].name, value: sliders[i].value });
+        } else if (sliders[i].kind === 'file') {
+          if (fileStore[sliders[i].name] && sx > r.x + SLIDER_W - 22) {
+            setFile(sliders[i].name, null, null);
+          } else {
+            pickFile(sliders[i]);
+          }
         } else if (sliders[i].kind === 'number') {
           var ns = sliders[i];
           var rel = sx - r.x;
@@ -1572,6 +1579,25 @@ function drawOverlays() {
         ctx.beginPath();
         ctx.arc(px0, py0, 6, 0, Math.PI * 2);
         ctx.fill();
+        continue;
+      }
+      if (s.kind === 'file') {
+        var has = !!fileStore[s.name];
+        var fname = has ? fileStore[s.name].fileName : 'choose file\u2026';
+        var fmax = Math.floor((SLIDER_W - (has ? 34 : 14)) / 6.6);
+        if (fname.length > fmax) fname = fname.slice(0, fmax - 1) + '\u2026';
+        ctx.fillStyle = '#aab0c4';
+        ctx.textAlign = 'left';
+        ctx.fillText(s.name, r.x, r.y + 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.fillRect(r.x, r.y + 17, SLIDER_W, 20);
+        ctx.fillStyle = has ? '#e6e8f0' : '#8b91a1';
+        ctx.fillText(fname, r.x + 7, r.y + 22);
+        if (has) {
+          ctx.fillStyle = '#aab0c4';
+          ctx.textAlign = 'center';
+          ctx.fillText('\u00d7', r.x + SLIDER_W - 11, r.y + 22);
+        }
         continue;
       }
       if (s.kind === 'number') {
@@ -2203,6 +2229,304 @@ function number(name, value, step, min, max) {
   return s.value;
 }
 
+var MAX_DATA = 20 * 1024 * 1024;
+
+function csvDelimiter(text) {
+  var line = text.slice(0, text.search(/\\r?\\n/) < 0 ? text.length : text.search(/\\r?\\n/));
+  var best = ',';
+  var bestCount = 0;
+  [',', ';', '\\t'].forEach(function (d) {
+    var count = line.split(d).length - 1;
+    if (count > bestCount) {
+      best = d;
+      bestCount = count;
+    }
+  });
+  return best;
+}
+
+function csvValue(cell, quoted, typed) {
+  if (!typed) return cell;
+  if (cell === '') return quoted ? '' : null;
+  var t = cell.trim();
+  if (t === 'true') return true;
+  if (t === 'false') return false;
+  if (t === 'NaN') return NaN;
+  if (t === 'Infinity' || t === '+Infinity') return Infinity;
+  if (t === '-Infinity') return -Infinity;
+  if (/^[-+]?(\\d+[.]?\\d*|[.]\\d+)([eE][-+]?\\d+)?$/.test(t)) return Number(t);
+  return cell;
+}
+
+function csvParse(text, options) {
+  var o = options || {};
+  text = String(text == null ? '' : text);
+  if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
+  var delim = o.delimiter || csvDelimiter(text);
+  var typed = o.typed !== false;
+  var rows = [];
+  var row = [];
+  var cell = '';
+  var quoted = false;
+  var inQuotes = false;
+  var n = text.length;
+  function endCell() {
+    row.push(csvValue(cell, quoted, typed));
+    cell = '';
+    quoted = false;
+  }
+  function endRow() {
+    endCell();
+    if (!(row.length === 1 && (row[0] === null || row[0] === ''))) rows.push(row);
+    row = [];
+  }
+  for (var i = 0; i < n; i++) {
+    var ch = text[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') {
+          cell += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        cell += ch;
+      }
+    } else if (ch === '"' && cell === '') {
+      inQuotes = true;
+      quoted = true;
+    } else if (ch === delim) {
+      endCell();
+    } else if (ch === '\\n' || ch === '\\r') {
+      if (ch === '\\r' && text[i + 1] === '\\n') i++;
+      endRow();
+    } else {
+      cell += ch;
+    }
+  }
+  if (cell !== '' || quoted || row.length) endRow();
+
+  if (o.header === false) return rows;
+  var head = rows.shift() || [];
+  var seen = Object.create(null);
+  var columns = head.map(function (h, j) {
+    var name = h == null || h === '' ? 'column' + (j + 1) : String(h);
+    if (seen[name]) name += '_' + ++seen[name];
+    else seen[name] = 1;
+    return name;
+  });
+  var out = rows.map(function (r) {
+    var obj = {};
+    for (var j = 0; j < columns.length; j++) obj[columns[j]] = j < r.length ? r[j] : null;
+    return obj;
+  });
+  out.columns = columns;
+  return out;
+}
+
+function jsonParse(text, where) {
+  try {
+    return JSON.parse(text);
+  } catch (err) {
+    var m = /position (\\d+)/.exec(err.message);
+    var msg = err.message;
+    if (m && !/line [0-9]+/.test(msg)) {
+      var before = text.slice(0, Number(m[1])).split('\\n');
+      msg = 'line ' + before.length + ', column ' + (before[before.length - 1].length + 1) + ': ' + err.message;
+    }
+    throw new Error((where ? where + ': ' : '') + 'invalid JSON (' + msg + ')');
+  }
+}
+
+var DATA_FORMATS = ['json', 'csv', 'tsv', 'text', 'lines'];
+
+function parse(text, format, options) {
+  text = String(text == null ? '' : text);
+  format = format || 'text';
+  if (format === 'json') return jsonParse(text);
+  if (format === 'csv') return csvParse(text, options);
+  if (format === 'tsv') return csvParse(text, Object.assign({ delimiter: '\\t' }, options));
+  if (format === 'lines') {
+    var lines = text.split(/\\r?\\n/);
+    if (lines.length && lines[lines.length - 1] === '') lines.pop();
+    return lines;
+  }
+  if (format === 'text') return text;
+  throw new Error("parse: unknown format '" + format + "' (use " + DATA_FORMATS.join(', ') + ')');
+}
+
+function formatFromName(name) {
+  var m = /[.]([a-z0-9]+)$/i.exec(String(name || '').split(/[?#]/)[0]);
+  var ext = m ? m[1].toLowerCase() : '';
+  if (ext === 'json' || ext === 'geojson') return 'json';
+  if (ext === 'csv') return 'csv';
+  if (ext === 'tsv' || ext === 'tab') return 'tsv';
+  if (ext === 'txt' || ext === 'text' || ext === 'md' || ext === 'log') return 'text';
+  return null;
+}
+
+var fileStore = Object.create(null);
+var fileCache = Object.create(null);
+var FILE_ROW = 44;
+
+function file(name, format) {
+  name = String(name);
+  var s = sliderMap[name];
+  if (s && s.kind !== 'file') return null;
+  if (!s) {
+    s = sliderMap[name] = { kind: 'file', name: name, value: 0 };
+    sliders.push(s);
+  }
+  s.format = format || null;
+  var f = fileStore[name];
+  s.fileName = f ? f.fileName : null;
+  if (!f) return null;
+  var fmt = format || formatFromName(f.fileName) || 'text';
+  var c = fileCache[name];
+  if (c && c.text === f.text && c.format === fmt) return c.data;
+  var data = parse(f.text, fmt);
+  fileCache[name] = { text: f.text, format: fmt, data: data };
+  return data;
+}
+
+function fileAccept(format) {
+  if (format === 'json') return '.json,.geojson,application/json';
+  if (format === 'csv') return '.csv,text/csv';
+  if (format === 'tsv') return '.tsv,.tab,text/tab-separated-values';
+  if (format === 'text' || format === 'lines') return '.txt,.md,.log,text/plain';
+  return '.csv,.tsv,.json,.txt,text/*,application/json';
+}
+
+function setFile(name, fileName, text) {
+  if (text == null) {
+    delete fileStore[name];
+    delete fileCache[name];
+  } else {
+    fileStore[name] = { fileName: String(fileName || name), text: String(text) };
+  }
+  dirty = true;
+  post({ source: 'vexel', type: 'filestore', name: name, fileName: text == null ? null : fileStore[name].fileName, text: text == null ? null : fileStore[name].text });
+}
+
+function fileTarget(fileName) {
+  var base = String(fileName).replace(/[.][^.]*$/, '');
+  var controls = sliders.filter(function (s) { return s.kind === 'file'; });
+  for (var i = 0; i < controls.length; i++) if (controls[i].name === base) return controls[i].name;
+  for (i = 0; i < controls.length; i++) if (!fileStore[controls[i].name]) return controls[i].name;
+  return controls.length ? controls[0].name : null;
+}
+
+function receiveFile(name, fileName, text) {
+  if (String(text).length > MAX_DATA) {
+    emitLog('error', ['file: ' + fileName + ' is larger than 20 MB']);
+    return;
+  }
+  var target = name || fileTarget(fileName);
+  if (!target) {
+    emitLog('warn', ["file: dropped '" + fileName + "', but the sketch has no file() control to receive it"]);
+    return;
+  }
+  setFile(target, fileName, text);
+}
+
+function pickFile(s) {
+  if (standalone) {
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.accept = fileAccept(s.format);
+    input.onchange = function () {
+      var f = input.files && input.files[0];
+      if (f) readLocalFile(f, s.name);
+    };
+    input.click();
+  } else {
+    post({ source: 'vexel', type: 'pickfile', name: s.name, accept: fileAccept(s.format) });
+  }
+}
+
+function readLocalFile(f, name) {
+  if (f.size > MAX_DATA) {
+    emitLog('error', ['file: ' + f.name + ' is larger than 20 MB']);
+    return;
+  }
+  f.text().then(function (text) { receiveFile(name, f.name, text); });
+}
+
+var loads = Object.create(null);
+
+function load(url, format, options) {
+  if (isStyle(format)) {
+    options = format;
+    format = null;
+  }
+  options = options || {};
+  url = String(url);
+  var every = options.every > 0 ? options.every : 0;
+  var id = url + '|' + (format || '');
+  var e = loads[id];
+  if (!e) {
+    e = loads[id] = { url: url, format: format || null, data: null, has: false, busy: false, timer: null, every: every, used: true, failed: null };
+    fetchData(e);
+  }
+  e.used = true;
+  if (every !== e.every) {
+    e.every = every;
+    scheduleLoad(e);
+  }
+  return e.has ? e.data : null;
+}
+
+function scheduleLoad(e) {
+  if (e.timer) clearTimeout(e.timer);
+  e.timer = null;
+  if (!e.every) return;
+  e.timer = setTimeout(function () {
+    e.timer = null;
+    if (!e.used) return;
+    e.used = false;
+    fetchData(e);
+  }, e.every * 1000);
+}
+
+function fetchData(e) {
+  if (e.busy) return;
+  e.busy = true;
+  fetch(e.url, { cache: e.every ? 'no-store' : 'default' })
+    .then(function (res) {
+      if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + res.statusText);
+      var type = res.headers.get('content-type') || '';
+      return res.text().then(function (text) {
+        if (text.length > MAX_DATA) throw new Error('larger than 20 MB');
+        var fmt = e.format || formatFromName(e.url) ||
+          (/json/.test(type) ? 'json' : /csv/.test(type) ? 'csv' : /tab-separated/.test(type) ? 'tsv' : null);
+        if (!fmt) {
+          try {
+            return JSON.parse(text);
+          } catch (err) {
+            return text;
+          }
+        }
+        return parse(text, fmt);
+      });
+    })
+    .then(function (data) {
+      e.data = data;
+      e.has = true;
+      e.failed = null;
+      dirty = true;
+    }, function (err) {
+      var msg = 'load: ' + e.url + ': ' + (err && err.message ? err.message : String(err));
+      if (err instanceof TypeError) msg += ' (network error, or the server does not allow cross-origin requests)';
+      if (msg !== e.failed) emitLog('error', [msg]);
+      e.failed = msg;
+    })
+    .then(function () {
+      e.busy = false;
+      scheduleLoad(e);
+    });
+}
+
 function report(err) {
   halted = true;
   var message = err && err.message ? err.message : String(err);
@@ -2240,7 +2564,8 @@ var scopeNames = [
   'add', 'sub', 'scale', 'dot', 'len', 'dist', 'norm', 'rot', 'angle', 'polar', 'intersect',
   'clamp', 'map', 'smoothstep', 'ease', 'noise',
   'mix', 'alpha', 'ramp', 'legend', 'colorbar', 'pause', 'step', 'slider2d', 'swatch',
-  'textBox', 'dims', 'grid2d', 'screenshot', 'number'
+  'textBox', 'dims', 'grid2d', 'screenshot', 'number',
+  'file', 'load', 'parse', 'csvParse'
 ];
 var scopeValues = [
   canvas, ctx, view, mouse, frame, animate,
@@ -2258,7 +2583,8 @@ var scopeValues = [
   add, sub, scale, dot, len, dist, norm, rot, angle, polar, intersect,
   clamp, map, smoothstep, ease, noise,
   mix, alpha, ramp, legend, colorbar, pause, step, slider2d, swatch,
-  textBox, dims, grid2d, screenshot, number
+  textBox, dims, grid2d, screenshot, number,
+  file, load, parse, csvParse
 ];
 Object.getOwnPropertyNames(Math).forEach(function (name) {
   if (scopeNames.indexOf(name) >= 0) return;
@@ -2358,6 +2684,14 @@ window.addEventListener('message', function (e) {
     dirty = true;
   } else if (d.type === 'keyreset') {
     clearKeys();
+  } else if (d.type === 'files') {
+    for (var fk in d.files || {}) {
+      var fv = d.files[fk];
+      if (fv && typeof fv.text === 'string') fileStore[fk] = { fileName: String(fv.fileName || fk), text: fv.text };
+    }
+    dirty = true;
+  } else if (d.type === 'file' && typeof d.text === 'string') {
+    receiveFile(d.name ? String(d.name) : null, String(d.fileName || 'data'), d.text);
   } else if (d.type === 'sliders') {
     for (var key in d.values) {
       if (typeof d.values[key] === 'number') savedSliders[key] = d.values[key];
@@ -2384,6 +2718,7 @@ function start() {
 function setupStandalone() {
   cam.zoom = STANDALONE.zoom || 1;
   for (var key in STANDALONE.sliders || {}) savedSliders[key] = STANDALONE.sliders[key];
+  for (var fk in STANDALONE.files || {}) fileStore[fk] = STANDALONE.files[fk];
   cam.x = window.innerWidth / 2;
   cam.y = window.innerHeight / 2;
 
@@ -2555,6 +2890,12 @@ function setupStandalone() {
   });
   window.addEventListener('keyup', function (e) { setKey(e.key, e.code, false); });
   window.addEventListener('blur', clearKeys);
+  window.addEventListener('dragover', function (e) { e.preventDefault(); });
+  window.addEventListener('drop', function (e) {
+    e.preventDefault();
+    var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) readLocalFile(f, null);
+  });
 
   start();
 }
@@ -2580,11 +2921,12 @@ export type PreviewDocOptions = {
   standalone?: boolean;
   zoom?: number;
   sliders?: Record<string, number>;
+  files?: Record<string, { fileName: string; text: string }>;
 };
 
 export function buildPreviewDoc(code: string, options: PreviewDocOptions = {}): string {
   const safeCode = JSON.stringify(code).replace(/</g, '\\u003c');
-  const { standalone = false, zoom = 1, sliders = {} } = options;
+  const { standalone = false, zoom = 1, sliders = {}, files = {} } = options;
 
   const dataUri = (svg: string) => 'data:image/svg+xml,' + encodeURIComponent(svg.trim());
 
@@ -2616,7 +2958,7 @@ export function buildPreviewDoc(code: string, options: PreviewDocOptions = {}): 
       ? '\n<pre id="err"></pre>\n<div id="readout"><span id="rx"></span><span id="ry"></span></div>' +
         `\n<a id="brand" href="${PROJECT_URL}" target="_blank" rel="noopener noreferrer" title="Made with Vexel"><img src="${dataUri(logoSvg)}" alt=""><span>Vexel</span></a>`
       : '';
-  const standaloneVar = standalone ? `<script>var STANDALONE = { zoom: ${Number(zoom) || 1}, sliders: ${JSON.stringify(sliders).replace(/</g, '\\u003c')} };<\/script>\n` : '';
+  const standaloneVar = standalone ? `<script>var STANDALONE = { zoom: ${Number(zoom) || 1}, sliders: ${JSON.stringify(sliders).replace(/</g, '\\u003c')}, files: ${JSON.stringify(files).replace(/</g, '\\u003c')} };<\/script>\n` : '';
 
   return `<!doctype html>
 <html>
