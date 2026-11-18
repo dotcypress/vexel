@@ -128,6 +128,7 @@ Ramps for `heat` and `scatter`: `'viridis'` (default), `'magma'`, `'inferno'`, `
 | `button(name)` | Button; true for the one frame after it is clicked. |
 | `every(seconds, fn?, key?)` | In `animate`: true once every `seconds`, and calls `fn` when it is. |
 | `drag(id, x, y, r?, color?)` | Draggable handle; returns its `[x, y]`, which survives re-runs and edits. |
+| `lockView(options?)` | Stop the user panning and zooming; `{ pan: false }` or `{ zoom: false }` keeps one of them. |
 | `key(name)` | True while a key is held, e.g. `'ArrowLeft'`, `'a'`, `'Space'`. |
 | `hover(x, y, r)` | True while the pointer is within `r` of a point. |
 | `hud(...lines)` | Text in the top-left corner for this frame. |

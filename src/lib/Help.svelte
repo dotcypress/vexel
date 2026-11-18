@@ -292,6 +292,11 @@
 					example: "const [ax, ay] = drag('a', -80, -40, 8, palette(0))\nconst [bx, by] = drag('b', 80, 40, 8, palette(1))\nclear('#282c34')\ngrid()\nline(ax, ay, bx, by, 'white', px(2))\nhud('length ' + hypot(bx - ax, by - ay).toFixed(1))"
 				},
 				{
+					signature: 'lockView(options?)',
+					text: 'Stops the user from moving the view: wheel, pinch, drag-to-pan and the zoom keys and buttons. lockView() locks both pan and zoom; lockView({ pan: false }) locks only zoom, lockView({ zoom: false }) only pan. fit() can still move the camera. The lock lasts until the code changes.',
+					example: "lockView()\nfit(-100, -100, 200, 200)\nclear('#282c34')\ngrid()\ncircle(0, 0, 60, palette(2))\nhud('try to scroll or zoom')"
+				},
+				{
 					signature: 'mouse.clicked',
 					text: 'True for the one frame after the left button goes down on the sketch. Clicks on controls do not count.',
 					example: "const dots = []\nanimate(() => {\n  if (mouse.clicked) dots.push([mouse.x, mouse.y])\n  clear('#282c34')\n  points(dots, 12, palette(2))\n  hud('click to add dots')\n})"

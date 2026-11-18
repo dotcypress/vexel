@@ -142,8 +142,6 @@
 					{/each}
 				</select>
 				<button onclick={() => (helpOpen = true)} title="API reference and shortcuts">Help</button>
-
-				<button class="primary" onclick={run} title="Cmd/Ctrl+Enter">Run ▶</button>
 			</div>
 		</header>
 		<div class="editor-wrap">
@@ -240,11 +238,6 @@
 	}
 	.examples:hover {
 		border-color: var(--accent);
-	}
-	button.primary {
-		background: var(--accent);
-		border-color: var(--accent);
-		color: #fff;
 	}
 	.editor-wrap {
 		flex: 1;

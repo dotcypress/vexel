@@ -3,11 +3,9 @@ import faviconSvg from './assets/favicon.svg?raw';
 
 export const PROJECT_URL = 'https://github.com/dotcypress/vexel';
 
-export const DEFAULT_CODE = `// A sunflower: each dot sits at the golden angle from the last, which packs them into
-// spirals. Drag the sliders to change the speed, spread and dot count.
-
-const golden = PI * (3 - sqrt(5))   // the golden angle, about 2.4 radians
-let angle = 0                       // grows with time, so changing the speed never jumps
+export const DEFAULT_CODE = `// Sunflower: each seed sits one golden angle past the last.
+const golden = PI * (3 - sqrt(5))
+let spin = 0
 
 fit(-340, -340, 680, 680)
 
@@ -15,14 +13,14 @@ animate((t, dt) => {
   const speed = slider('speed', 0, 2, 0.14)
   const spread = slider('spread', 5, 20, 10)
   const count = slider('dots', 100, 1500, 900, 10)
-  angle += speed * dt
+  spin += speed * dt
 
   clear('#282c34')
   for (let i = 1; i < count; i++) {
-    const a = i * golden + angle
-    const r = spread * sqrt(i) * (1 + 0.1 * sin(t * 1.5 - i * 0.02))
-    const size = 2 + 5 * (0.5 + 0.5 * sin(i * 0.05 - t * 2))
-    point(cos(a) * r, sin(a) * r, size, hsl(i * 0.4 + t * 30, 90, 60))
+    const angle = i * golden + spin
+    const radius = spread * sqrt(i) * (1 + 0.1 * sin(t * 1.5 - i * 0.02))
+    const size = 4.5 + 2.5 * sin(i * 0.05 - t * 2)
+    point(cos(angle) * radius, sin(angle) * radius, size, hsl(i * 0.4 + t * 30, 90, 60))
   }
 })`;
 
@@ -837,6 +835,21 @@ function fit(x, y, w, h) {
   post({ source: 'vexel', type: 'camera', x: cam.x, y: cam.y, zoom: zoom });
 }
 
+// lockView(options?): stops the user from panning and/or zooming the view. With no
+// argument both are locked; { pan: false } locks only zoom, { zoom: false } only pan.
+// fit() still moves the camera. Editing the code clears the lock.
+var viewLock = { pan: false, zoom: false };
+
+function lockView(options) {
+  var o = options || {};
+  var pan = o.pan !== false;
+  var zoom = o.zoom !== false;
+  if (pan === viewLock.pan && zoom === viewLock.zoom) return;
+  viewLock.pan = pan;
+  viewLock.zoom = zoom;
+  post({ source: 'vexel', type: 'lock', pan: pan, zoom: zoom });
+}
+
 // Text at (x, y), vertically centered. size is in world units (default 14);
 // align is 'left' (default), 'center' or 'right'.
 function text(str, x, y, color, size, align) {
@@ -1464,7 +1477,7 @@ var scopeNames = [
   'range', 'linspace', 'bounds', 'normalize', 'lerp',
   'plotParam', 'ellipse', 'arc', 'poly',
   'seed', 'random', 'gauss', 'once',
-  'button', 'every', 'drag'
+  'button', 'every', 'drag', 'lockView'
 ];
 var scopeValues = [
   canvas, ctx, view, mouse, frame, animate,
@@ -1477,7 +1490,7 @@ var scopeValues = [
   range, linspace, bounds, normalize, lerp,
   plotParam, ellipse, arc, poly,
   seed, random, gauss, once,
-  button, every, drag
+  button, every, drag, lockView
 ];
 Object.getOwnPropertyNames(Math).forEach(function (name) {
   // Helpers win over Math members of the same name (log prints; use Math.log for ln, random is seeded; use Math.random for unseeded).
@@ -1642,7 +1655,9 @@ function setupStandalone() {
 
   canvas.addEventListener('wheel', function (e) {
     e.preventDefault();
-    if (e.ctrlKey || e.metaKey) {
+    var zooming = e.ctrlKey || e.metaKey;
+    if (zooming ? viewLock.zoom : viewLock.pan) return;
+    if (zooming) {
       var z = Math.min(100, Math.max(0.01, cam.zoom * Math.exp(-e.deltaY * 0.01)));
       var ratio = z / cam.zoom;
       cam.x = e.clientX - (e.clientX - cam.x) * ratio;
@@ -1659,6 +1674,7 @@ function setupStandalone() {
   canvas.addEventListener('pointerdown', function (e) {
     canvas.setPointerCapture(e.pointerId);
     if (e.button === 1 || e.button === 2) {
+      if (viewLock.pan) return;
       panning = true;
       last.x = e.clientX;
       last.y = e.clientY;

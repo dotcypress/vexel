@@ -300,6 +300,12 @@ export const SKETCH: Completion[] = [
 		'id, x, y, r?, color?',
 		'A handle the user can drag, starting at x, y. Returns its current [x, y]. The position survives re-runs and code edits. r is the grab radius in screen pixels (default 8).',
 		'drag("${id}", ${x}, ${y})'
+	),
+	fn(
+		'lockView',
+		'options?',
+		'Stops the user from panning and zooming. lockView() locks both; { pan: false } locks only zoom, { zoom: false } only pan. fit() still works. Editing the code clears the lock.',
+		'lockView()'
 	)
 ];
 

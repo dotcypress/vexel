@@ -51,6 +51,8 @@
 	const decimals = $derived(Math.min(6, Math.max(0, Math.ceil(Math.log10(zoom)) + 1)));
 
 	let spaceDown = $state(false);
+	// What the sketch's lockView() has disabled; cleared whenever a new run starts.
+	let locked = $state({ pan: false, zoom: false });
 	let dragging = $state(false);
 
 
@@ -119,8 +121,10 @@
 
 	function onWheel(e: WheelEvent) {
 		e.preventDefault();
+		const zooming = e.ctrlKey || e.metaKey;
+		if (zooming ? locked.zoom : locked.pan) return;
 		const r = viewport.getBoundingClientRect();
-		if (e.ctrlKey || e.metaKey) {
+		if (zooming) {
 			// Pinch gestures arrive as ctrl+wheel with small deltas.
 			zoomAt(zoom * Math.exp(-e.deltaY * 0.01), e.clientX - r.left, e.clientY - r.top);
 		} else {
@@ -147,6 +151,7 @@
 		viewport.setPointerCapture(e.pointerId);
 		if (e.button === 1 || e.button === 2 || (e.button === 0 && spaceDown)) {
 			e.preventDefault();
+			if (locked.pan) return;
 			panning = true;
 			dragging = true;
 			panStart = { x: e.clientX, y: e.clientY, panX, panY };
@@ -191,14 +196,14 @@
 	function onKeyDown(e: KeyboardEvent) {
 		sendKey(e, true);
 		if (e.code === 'Space') {
-			spaceDown = true;
+			if (!locked.pan) spaceDown = true;
 			e.preventDefault();
 		} else if (e.key === '0') {
-			resetView();
+			if (!locked.pan && !locked.zoom) resetView();
 		} else if (e.key === '+' || e.key === '=') {
-			zoomBy(1.25);
+			if (!locked.zoom) zoomBy(1.25);
 		} else if (e.key === '-') {
-			zoomBy(1 / 1.25);
+			if (!locked.zoom) zoomBy(1 / 1.25);
 		}
 	}
 
@@ -213,6 +218,7 @@
 		if (!d || d.source !== 'vexel') return;
 		if (d.type === 'ready') {
 			sketchCursor = '';
+			locked = { pan: false, zoom: false };
 			// Every edit reloads the sketch; hand back slider values so they survive.
 			frame?.contentWindow?.postMessage({ source: 'vexel', type: 'sliders', values: sliderValues }, '*');
 			sendCamera(panX, panY, zoom);
@@ -234,6 +240,8 @@
 						text: String(x.text).slice(0, 2000)
 					}))
 			);
+		} else if (d.type === 'lock') {
+			locked = { pan: d.pan === true, zoom: d.zoom === true };
 		} else if (d.type === 'cursor') {
 			sketchCursor = d.cursor === 'grab' || d.cursor === 'grabbing' ? d.cursor : '';
 		} else if (d.type === 'error') {
@@ -283,10 +291,16 @@
 <div class="preview">
 	<div class="toolbar">
 		<div class="group">
-			<button title="Zoom out (-)" onclick={() => zoomBy(1 / 1.25)}>−</button>
-			<button class="value" title="Zoom to 100%" onclick={() => zoomTo(1)}>{percent}%</button>
-			<button title="Zoom in (+)" onclick={() => zoomBy(1.25)}>+</button>
-			<button title="Reset view: origin at center, 100% (0)" onclick={resetView}>Reset</button>
+			<button title="Zoom out (-)" disabled={locked.zoom} onclick={() => zoomBy(1 / 1.25)}>−</button>
+			<button class="value" title="Zoom to 100%" disabled={locked.zoom} onclick={() => zoomTo(1)}
+				>{percent}%</button
+			>
+			<button title="Zoom in (+)" disabled={locked.zoom} onclick={() => zoomBy(1.25)}>+</button>
+			<button
+				title="Reset view: origin at center, 100% (0)"
+				disabled={locked.pan || locked.zoom}
+				onclick={resetView}>Reset</button
+			>
 
 		</div>
 		<div class="group">
@@ -374,8 +388,12 @@
 		font: inherit;
 		cursor: pointer;
 	}
-	button:hover {
+	button:hover:not(:disabled) {
 		border-color: var(--accent);
+	}
+	button:disabled {
+		opacity: 0.4;
+		cursor: default;
 	}
 
 	button.value {
