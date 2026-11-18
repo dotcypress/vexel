@@ -94,8 +94,8 @@
         },
         {
           signature: 'axes(color?)',
-          text: 'X and Y axes through the origin, with value labels. Call it after clear().',
-          example: 'axes()'
+          text: "X and Y axes through the origin, with value labels. Call it after clear(). Pass an object for more: axes({ color, xLabel, yLabel, step }). step is the label spacing in world units (doubled while labels would crowd), and xLabel and yLabel name the axes.",
+          example: "clear('#282c34')\naxes({ xLabel: 'time (s)', yLabel: 'height (m)', step: 25 })\nplot((x) => 60 * sin(x / 30), palette(0), px(2))"
         },
         {
           signature: 'fit(x, y, w, h)',
@@ -116,7 +116,7 @@
     },
     {
       title: 'Shapes',
-      note: 'fill is a color, or omitted/true for ctx.fillStyle, or false/null for no fill. stroke is a color, or true for ctx.strokeStyle; leave it out for no outline. As an object, { fill } fills and { stroke } outlines: circle(0, 0, 40, { stroke: \'white\', width: px(2) }).',
+      note: 'fill is a color, or omitted/true for ctx.fillStyle, or false/null for no fill. stroke is a color, or true for ctx.strokeStyle; leave it out for no outline. As an object, { fill } fills and { stroke } outlines: circle(0, 0, 40, { stroke: \'white\', width: px(2) }). Stroked helpers also take { dash: [on, off] } in screen pixels: line(0, 0, 80, 0, { color: \'white\', dash: [6, 4] }).',
       helpers: [
         {
           signature: 'point(x, y, color?, size?)',
@@ -184,12 +184,57 @@
             "  point(x, y, 'white', 8)",
             '})'
           ].join('\n')
+        },
+        {
+          signature: "arrow(x1, y1, x2, y2, color?, lineWidth?, head?)",
+          text: "Line with a filled arrowhead at x2, y2. head is the head length in screen pixels (default 8), capped at half the arrow.",
+          example: "arrow(-60, -30, 60, 30, palette(1), px(2))"
+        },
+        {
+          signature: "bezier(x1, y1, c1x, c1y, c2x, c2y, x2, y2, color?, lineWidth?)",
+          text: "Cubic Bezier curve from x1, y1 to x2, y2, pulled toward the two control points.",
+          example: "bezier(-80, 0, -40, 80, 40, -80, 80, 0, palette(2), px(2))"
+        },
+        {
+          signature: "spline(points, color?, lineWidth?, closed?)",
+          text: "Smooth curve through every [x, y] point (Catmull-Rom), the smooth version of polyline. closed = true loops back to the start.",
+          example: "const pts = range(8).map((i) => [i * 25 - 90, random(-50, 50)])\nspline(pts, palette(0), px(2))\npoints(pts, 'white', px(5))"
+        },
+        {
+          signature: "wedge(x, y, radius, start, end, fill?, stroke?, lineWidth?)",
+          text: "Pie slice from angle start to end (radians, counterclockwise). fill and stroke work like circle().",
+          example: "const data = [3, 5, 2, 6]\nconst total = data.reduce((a, b) => a + b)\nlet a = 0\ndata.forEach((v, i) => {\n  wedge(0, 0, 80, a, a + 2 * PI * v / total, palette(i))\n  a += 2 * PI * v / total\n})"
+        },
+        {
+          signature: "label(str, x, y, color?, size?, align?)",
+          text: "Like text, but size is in screen pixels (default 12), so it stays readable at any zoom. align is 'left' (default), 'center' or 'right'.",
+          example: "point(40, 20, palette(1), px(6))\nlabel('A (40, 20)', 40 + px(6), 20, 'white')"
+        },
+        {
+          signature: "textBox(str, x, y, color?, size?, align?)",
+          text: "Text on a dark backdrop, in screen pixels (default size 12), split into lines at \\n. x, y is the box's top-left corner, or its top center or top right with align 'center' or 'right'. As an object: { color, size, align, background }. Good for notes and tooltips.",
+          example: "const p = drag('p', 40, 30)\nclear('#282c34')\ngrid()\ntextBox('point\\nx = ' + p[0].toFixed(1) + '\\ny = ' + p[1].toFixed(1), p[0] + px(14), p[1] - px(10))"
+        },
+        {
+          signature: "dims(x1, y1, x2, y2, text?, color?, offset?)",
+          text: "A dimension line between two points, like on a technical drawing: extension lines, arrows and a label. text defaults to the distance. offset is how far from the points it is drawn, in screen pixels (default 16; negative for the other side).",
+          example: "clear('#282c34')\nrect(-60, -30, 120, 60, false, 'white', px(2))\ndims(-60, 30, 60, 30)\ndims(60, 30, 60, -30, '60 mm')"
+        },
+        {
+          signature: "image(src, x, y, w?, h?)",
+          text: "Draws a picture (any URL, including data: URLs) with its bottom-left corner at x, y. Without w and h it is one world unit per image pixel; with only w the aspect ratio is kept. It loads in the background and the sketch redraws when it arrives; returns whether it was drawn.",
+          example: "image('https://upload.wikimedia.org/wikipedia/commons/4/47/PNG_transparency_demonstration_1.png', -100, -75, 200)"
+        },
+        {
+          signature: "transform(fn, { x?, y?, rotate?, scale? })",
+          text: "Calls fn with the world moved to x, y, rotated by rotate radians and scaled by scale (a number or [sx, sy]), then puts everything back. Returns what fn returns.",
+          example: "animate((t) => {\n  clear('#282c34')\n  transform(() => rect(-30, -30, 60, 60, palette(4)), { x: 40, rotate: t })\n})"
         }
       ]
     },
     {
       title: 'Plots',
-      note: "heat paints opaque cells over the whole view, so call it right after clear() and draw everything else on top. Ramps for heat and scatter: viridis (default), magma, inferno, plasma, cividis (color-blind safe), turbo, hot and gray for values from low to high; coolwarm for values on both sides of a middle (0.5 is neutral); vexel, the logo gradient. Or pass a function t => color.",
+      note: "heat paints opaque cells over the whole view, so call it right after clear() and draw everything else on top. Ramps for heat and scatter: viridis (default), magma, inferno, plasma, cividis (color-blind safe), turbo, hot and gray for values from low to high; coolwarm for values on both sides of a middle (0.5 is neutral); vexel, the brand sunflower ramp (dark blue to green to gold), with lightness rising from low to high. Or pass a function t => color.",
       helpers: [
         {
           signature: 'plot(f, color?, lineWidth?, from?, to?)',
@@ -239,11 +284,52 @@
       ]
     },
     {
+      title: 'Vectors',
+      note: 'Vectors and points are [x, y] arrays, so spread them into the shape helpers: line(...a, ...b).',
+      helpers: [
+        {
+          signature: "add(a, b), sub(a, b)",
+          text: "Sum and difference of two [x, y] vectors.",
+          example: "const a = [60, 20], b = [10, 50]\narrow(0, 0, ...a, palette(0))\narrow(0, 0, ...b, palette(1))\narrow(0, 0, ...add(a, b), 'white')"
+        },
+        {
+          signature: "scale(v, k)",
+          text: "The vector v times k.",
+          example: "arrow(0, 0, ...scale([30, 20], 3), palette(2))"
+        },
+        {
+          signature: "dot(a, b), len(v), norm(v)",
+          text: "Dot product, length, and the vector scaled to length 1 ([0, 0] stays [0, 0]).",
+          example: "const v = [30, 40]\nhud({ len: len(v), dot: dot(v, [1, 0]) })\narrow(0, 0, ...scale(norm(v), 100), palette(3))"
+        },
+        {
+          signature: "dist(a, b)",
+          text: "Distance between two [x, y] points, or dist(x1, y1, x2, y2).",
+          example: "const p = drag('p', 50, 30)\nline(0, 0, ...p, 'white')\nlabel(dist([0, 0], p).toFixed(1), ...p)"
+        },
+        {
+          signature: "rot(v, angle, around?)",
+          text: "v rotated by angle radians counterclockwise around the point around (default the origin).",
+          example: "range(12).forEach((i) => point(...rot([80, 0], i * PI / 6), palette(i), px(8)))"
+        },
+        {
+          signature: "angle(v), polar(r, theta)",
+          text: "The direction of v in radians, and the [x, y] at distance r in direction theta.",
+          example: "const p = polar(80, PI / 3)\narrow(0, 0, ...p, palette(0))\nhud(angle(p))"
+        },
+        {
+          signature: "intersect(a1, a2, b1, b2)",
+          text: "Where segment a1-a2 crosses segment b1-b2, as [x, y], or null if they do not cross.",
+          example: "const a = drag('a', -80, -40), b = drag('b', 80, 40)\nline(...a, ...b, 'white')\nline(-60, 50, 60, -50, palette(1))\nconst p = intersect(a, b, [-60, 50], [60, -50])\nif (p) point(...p, palette(2), px(10))"
+        }
+      ]
+    },
+    {
       title: 'Colors',
       helpers: [
         {
           signature: 'palette(i)',
-          text: 'The i-th color of a built-in 16-color palette. Wraps around, so any integer works.',
+          text: 'The i-th color of the built-in 16-color Sunflower palette. Wraps around, so any integer works. palette(0) is the brand gold, each color differs strongly from the one before, and the first 8 stay distinct for red-green color blindness, so use them first for data series.',
           example: 'circle(0, 0, 30, palette(2))'
         },
         {
@@ -255,6 +341,21 @@
           signature: 'rgb(r, g, b, a?)',
           text: 'Color string. r, g, b are 0-255, a is 0-1 (default 1).',
           example: 'rect(0, 0, 50, 50, rgb(255, 120, 0, 0.5))'
+        },
+        {
+          signature: "mix(c1, c2, t?)",
+          text: "The color c1 mixed t of the way (0 to 1, default 0.5) toward c2. Works with any CSS color.",
+          example: "range(10).forEach((i) => circle(i * 20 - 90, 0, 9, mix('tomato', 'royalblue', i / 9)))"
+        },
+        {
+          signature: "alpha(color, a)",
+          text: "The color with its opacity multiplied by a (0 to 1).",
+          example: "circle(-20, 0, 50, alpha(palette(0), 0.5))\ncircle(20, 0, 50, alpha(palette(1), 0.5))"
+        },
+        {
+          signature: "ramp(name, t)",
+          text: "The color at t (0 to 1, clamped) of a built-in ramp such as 'viridis', or of your own ramp function.",
+          example: "range(20).forEach((i) => rect(i * 10 - 100, -20, 10, 40, ramp('plasma', i / 19)))"
         }
       ]
     },
@@ -276,6 +377,11 @@
           signature: 'lerp(a, b, t)',
           text: 'The value t of the way from a to b: lerp(10, 20, 0.5) is 15. t is not clamped, so values outside 0..1 extrapolate.',
           example: "circle(lerp(-80, 80, 0.25), 0, 20, hsl(lerp(200, 320, 0.25), 80, 60))"
+        },
+        {
+          signature: "grid2d(cols, rows, fn)",
+          text: "Calls fn(col, row, i) for every cell of a cols by rows grid, row by row from the bottom, and returns the results as a list. i is row * cols + col.",
+          example: "grid2d(8, 5, (c, r, i) => rect(c * 22, r * 22, 20, 20, palette(i)))"
         },
         {
           signature: 'normalize(list)',
@@ -301,6 +407,31 @@
           signature: 'gauss(mean?, sd?)',
           text: 'Seeded normally distributed number with the given mean (default 0) and standard deviation (default 1). Most values land within 2 sd of the mean.',
           example: "clear('#282c34')\naxes()\nhist(range(2000).map(() => gauss(100, 25)), 30)\nfit(0, -10, 200, 280)"
+        },
+        {
+          signature: "clamp(x, lo?, hi?)",
+          text: "x limited to lo..hi (default 0..1).",
+          example: "hud(clamp(1.7), clamp(-5, -1, 1))"
+        },
+        {
+          signature: "map(x, a1, b1, a2?, b2?)",
+          text: "x rescaled from the range a1..b1 to a2..b2 (default 0..1). Not clamped.",
+          example: "circle(0, 0, map(mouse.x, -100, 100, 5, 60), palette(3))"
+        },
+        {
+          signature: "smoothstep(a, b, x)",
+          text: "0 below a, 1 above b, and a smooth S-curve in between.",
+          example: "plot((x) => 50 * smoothstep(-50, 50, x), palette(2), px(2))"
+        },
+        {
+          signature: "ease(t, kind?)",
+          text: "Easing curve for t in 0..1 (clamped): 'linear', 'in', 'out', 'inOut' (default), 'sine', 'back', 'elastic' or 'bounce'.",
+          example: "animate((t) => {\n  clear('#282c34')\n  circle(-100 + 200 * ease(t / 2 % 1, 'bounce'), 0, 12, palette(1))\n})"
+        },
+        {
+          signature: "noise(x, y?, z?)",
+          text: "Seeded Perlin noise from 0 to 1 for 1, 2 or 3 coordinates. It changes smoothly over about one unit, so scale world coordinates down. Follows seed().",
+          example: "heat((x, y) => noise(x / 40, y / 40), 'viridis')"
         }
       ]
     },
@@ -316,6 +447,16 @@
           signature: 'once(fn, key?)',
           text: 'Calls fn the first time and returns the same result after that: on later frames, and when panning, zooming or a control re-runs the sketch. Use it for expensive setup or state that should survive re-runs. Editing the code starts over. Without a key, functions with identical source share a result; pass a key to tell them apart.',
           example: "const stars = once(() =>\n  range(300).map(() => [Math.random() * 400 - 200, Math.random() * 300 - 150])\n)\nclear('#14161b')\npoints(stars, 3, 'white')\nhud('pan around: the stars stay put')"
+        },
+        {
+          signature: "pause(on?)",
+          text: "pause() toggles, pause(true) and pause(false) set. While paused, time stands still and animate is only called when the view moves or step() is used. Returns whether animation is paused.",
+          example: "animate((t) => {\n  pause(toggle('paused'))\n  if (button('step')) step()\n  clear('#282c34')\n  circle(cos(t) * 80, sin(t) * 80, 10, palette(0))\n})"
+        },
+        {
+          signature: "step()",
+          text: "While paused, advances the animation by one 1/60 s frame.",
+          example: "animate((t) => {\n  pause(true)\n  if (button('step')) step()\n  clear('#282c34')\n  hud(t)\n})"
         }
       ]
     },
@@ -342,6 +483,21 @@
           signature: 'button(name)',
           text: 'Adds a button to the control panel. Returns true for the one frame after it is clicked (or the one re-run, in a sketch without animate).',
           example: "let n = 0\nanimate(() => {\n  if (button('add a dot')) {\n    n++\n  }\n  clear('#282c34')\n  range(n).forEach((i) => circle(i * 30 - 150, 0, 10, palette(i)))\n})"
+        },
+        {
+          signature: "number(name, value?, step?, min?, max?)",
+          text: "Adds a number field to the control panel and returns its value (default 0). Click - or + to step it by step (default 1), or drag the number left and right to scrub. min and max limit it. The value survives re-runs.",
+          example: "const sides = number('sides', 6, 1, 3, 20)\npoly(range(sides).map((i) => polar(80, (i * 2 * PI) / sides)), palette(4))"
+        },
+        {
+          signature: "slider2d(name, min?, max?, value?)",
+          text: "Adds an x/y pad to the control panel and returns [x, y], each from min to max (default -1 to 1). value is the initial [x, y] (default the middle). The value survives re-runs.",
+          example: "const [x, y] = slider2d('offset', -100, 100)\ncircle(x, y, 20, palette(5))"
+        },
+        {
+          signature: "swatch(name, value?)",
+          text: "Adds a color picker with the 16 palette colors and returns the chosen color. value is the initial palette index or color (default 0).",
+          example: "circle(0, 0, 50, swatch('fill', 2))"
         }
       ]
     },
@@ -392,6 +548,21 @@
           signature: 'log(...values)',
           text: 'Prints values to the console panel under the editor, separated by spaces. Objects and arrays are shown as JSON. console.log, info, warn and error end up there too. Identical consecutive lines are folded into a counter, the panel clears on every run, and in exported pages log prints to the browser console.',
           example: "log('mouse', mouse.x, mouse.y)"
+        },
+        {
+          signature: "screenshot(name?)",
+          text: "Saves the canvas as a PNG once the current frame is drawn, without the controls and hud, with a small Vexel badge in the corner (like the camera button above the preview). name is the file name (default 'vexel-sketch'). Call it from a button so it does not fire on every frame.",
+          example: "animate((t) => {\n  clear('#282c34')\n  circle(cos(t) * 60, sin(t) * 60, 20, palette(1))\n  if (button('save PNG')) {\n    screenshot('orbit')\n  }\n})"
+        },
+        {
+          signature: "legend(entries, title?)",
+          text: "A legend under the hud in the top-left corner, for this frame. entries are [[label, color], ...] or { label: color }.",
+          example: "plot((x) => 40 * sin(x / 20), palette(0), px(2))\nplot((x) => 40 * cos(x / 20), palette(1), px(2))\nlegend([['sin', palette(0)], ['cos', palette(1)]])"
+        },
+        {
+          signature: "colorbar(ramp?, min?, max?, title?)",
+          text: "A color bar for a ramp (default viridis) with its value range, under the hud, for this frame. Pairs with heat and scatter.",
+          example: "heat((x, y) => 0.5 + 0.5 * sin(x / 20) * cos(y / 20), 'magma')\ncolorbar('magma', -1, 1, 'value')"
         }
       ]
     }
@@ -741,7 +912,7 @@
     color: var(--muted);
   }
   .entry {
-    margin: 10px 0 14px;
+    margin: 20px 0 14px;
   }
   .signature {
     display: block;
@@ -795,7 +966,7 @@
     border-color: var(--accent);
   }
   .tool.run:hover {
-    color: #fff;
+    color: var(--bg);
     background: var(--accent);
   }
   .example code {

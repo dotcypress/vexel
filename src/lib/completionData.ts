@@ -84,7 +84,12 @@ export const SKETCH: Completion[] = [
     'Grid lines across the visible area. step is the minor spacing in world units (default 10); major is the major spacing (default 5 * step, 0 or false for none). Minor lines are drawn at half opacity. Call it after clear().',
     'grid()'
   ),
-  fn('axes', 'color?', 'X and Y axes through the origin, with value labels. Call it after clear().', 'axes()'),
+  fn(
+    'axes',
+    'color? | { color, xLabel, yLabel, step }',
+    'X and Y axes through the origin, with value labels. Call it after clear(). Pass an object for axis names and a label step.',
+    'axes()'
+  ),
   fn(
     'palette',
     'i',
@@ -306,6 +311,228 @@ export const SKETCH: Completion[] = [
     'pan?, zoom?',
     'Stops the user from panning and/or zooming. Both default to true: lockView() locks both, lockView(true, false) only pan, lockView(false, true) only zoom. fit() still works. Editing the code clears the lock.',
     'lockView()'
+  ),
+  fn(
+    "arrow",
+    "x1, y1, x2, y2, color?, lineWidth?, head?",
+    "Line with a filled arrowhead at x2, y2. head is in screen pixels (default 8).",
+    "arrow(${x1}, ${y1}, ${x2}, ${y2})"
+  ),
+  fn(
+    "bezier",
+    "x1, y1, c1x, c1y, c2x, c2y, x2, y2, color?, lineWidth?",
+    "Cubic Bezier curve from x1, y1 to x2, y2 with two control points.",
+    "bezier(${x1}, ${y1}, ${c1x}, ${c1y}, ${c2x}, ${c2y}, ${x2}, ${y2})"
+  ),
+  fn(
+    "spline",
+    "points, color?, lineWidth?, closed?",
+    "Smooth curve through every [x, y] point (Catmull-Rom).",
+    "spline(${points})"
+  ),
+  fn(
+    "wedge",
+    "x, y, radius, start, end, fill?, stroke?, lineWidth?",
+    "Pie slice from angle start to end (radians). fill and stroke work like circle().",
+    "wedge(${x}, ${y}, ${radius}, ${start}, ${end})"
+  ),
+  fn(
+    "label",
+    "str, x, y, color?, size?, align?",
+    "Text at a world point with size in screen pixels (default 12), readable at any zoom.",
+    "label(${str}, ${x}, ${y})"
+  ),
+  fn(
+    "image",
+    "src, x, y, w?, h?",
+    "Picture with its bottom-left corner at x, y. Loads in the background; returns whether it was drawn.",
+    "image(${src}, ${x}, ${y})"
+  ),
+  fn(
+    "transform",
+    "fn, { x?, y?, rotate?, scale? }",
+    "Calls fn with the world moved, rotated and scaled, then restores it.",
+    "transform(() => ${}, { x: 0, y: 0 })"
+  ),
+  fn(
+    "add",
+    "a, b",
+    "Sum of two [x, y] vectors.",
+    "add(${a}, ${b})"
+  ),
+  fn(
+    "sub",
+    "a, b",
+    "Difference a - b of two [x, y] vectors.",
+    "sub(${a}, ${b})"
+  ),
+  fn(
+    "scale",
+    "v, k",
+    "The vector v times k.",
+    "scale(${v}, ${k})"
+  ),
+  fn(
+    "dot",
+    "a, b",
+    "Dot product of two [x, y] vectors.",
+    "dot(${a}, ${b})"
+  ),
+  fn(
+    "len",
+    "v",
+    "Length of an [x, y] vector.",
+    "len(${v})"
+  ),
+  fn(
+    "dist",
+    "a, b",
+    "Distance between two [x, y] points, or dist(x1, y1, x2, y2).",
+    "dist(${a}, ${b})"
+  ),
+  fn(
+    "norm",
+    "v",
+    "The vector scaled to length 1 ([0, 0] stays [0, 0]).",
+    "norm(${v})"
+  ),
+  fn(
+    "rot",
+    "v, angle, around?",
+    "v rotated by angle radians counterclockwise around a point (default the origin).",
+    "rot(${v}, ${angle})"
+  ),
+  fn(
+    "angle",
+    "v",
+    "Direction of an [x, y] vector in radians.",
+    "angle(${v})"
+  ),
+  fn(
+    "polar",
+    "r, theta",
+    "The [x, y] at distance r in direction theta.",
+    "polar(${r}, ${theta})"
+  ),
+  fn(
+    "intersect",
+    "a1, a2, b1, b2",
+    "Where segment a1-a2 crosses segment b1-b2, as [x, y], or null.",
+    "intersect(${a1}, ${a2}, ${b1}, ${b2})"
+  ),
+  fn(
+    "clamp",
+    "x, lo?, hi?",
+    "x limited to lo..hi (default 0..1).",
+    "clamp(${x})"
+  ),
+  fn(
+    "map",
+    "x, a1, b1, a2?, b2?",
+    "x rescaled from a1..b1 to a2..b2 (default 0..1). Not clamped.",
+    "map(${x}, ${a1}, ${b1}, ${a2}, ${b2})"
+  ),
+  fn(
+    "smoothstep",
+    "a, b, x",
+    "0 below a, 1 above b, a smooth S-curve in between.",
+    "smoothstep(${a}, ${b}, ${x})"
+  ),
+  fn(
+    "ease",
+    "t, kind?",
+    "Easing for t in 0..1: 'linear', 'in', 'out', 'inOut' (default), 'sine', 'back', 'elastic', 'bounce'.",
+    "ease(${t})"
+  ),
+  fn(
+    "noise",
+    "x, y?, z?",
+    "Seeded Perlin noise in 0..1, smooth over about one unit: noise(x / 50, y / 50).",
+    "noise(${x}, ${y})"
+  ),
+  fn(
+    "mix",
+    "c1, c2, t?",
+    "The color c1 mixed t of the way (default 0.5) toward c2.",
+    "mix(${c1}, ${c2}, ${t})"
+  ),
+  fn(
+    "alpha",
+    "color, a",
+    "The color with its opacity multiplied by a.",
+    "alpha(${color}, ${0.5})"
+  ),
+  fn(
+    "ramp",
+    "name, t",
+    "The color at t (0..1) of a ramp such as 'viridis'.",
+    "ramp('${viridis}', ${t})"
+  ),
+  fn(
+    "legend",
+    "entries, title?",
+    "Legend under the hud for this frame: [[label, color], ...] or { label: color }.",
+    "legend([[${}]])"
+  ),
+  fn(
+    "colorbar",
+    "ramp?, min?, max?, title?",
+    "Color bar for a ramp with its value range, under the hud.",
+    "colorbar(${})"
+  ),
+  fn(
+    "pause",
+    "on?",
+    "pause() toggles, pause(true/false) sets. Returns whether animation is paused.",
+    "pause(${})"
+  ),
+  fn(
+    "step",
+    "",
+    "While paused, advances the animation by one 1/60 s frame.",
+    "step()"
+  ),
+  fn(
+    "slider2d",
+    "name, min?, max?, value?",
+    "Adds an x/y pad to the control panel. Returns [x, y], each from min to max (default -1..1).",
+    "slider2d(\"${name}\")"
+  ),
+  fn(
+    "swatch",
+    "name, value?",
+    "Adds a palette color picker to the control panel. Returns the chosen color.",
+    "swatch(\"${name}\")"
+  ),
+  fn(
+    "textBox",
+    "str, x, y, color?, size?, align?",
+    "Text on a dark backdrop in screen pixels, split into lines at \\n. x, y is the top-left corner.",
+    "textBox(${str}, ${x}, ${y})"
+  ),
+  fn(
+    "dims",
+    "x1, y1, x2, y2, text?, color?, offset?",
+    "Dimension line between two points with arrows and a label (default: the distance). offset in screen pixels (default 16).",
+    "dims(${x1}, ${y1}, ${x2}, ${y2})"
+  ),
+  fn(
+    "grid2d",
+    "cols, rows, fn",
+    "Calls fn(col, row, i) for every cell and returns the results as a list.",
+    "grid2d(${cols}, ${rows}, (col, row, i) => ${})"
+  ),
+  fn(
+    "screenshot",
+    "name?",
+    "Saves the canvas as a PNG after this frame, without controls. Call it from a button.",
+    "screenshot(${})"
+  ),
+  fn(
+    "number",
+    "name, value?, step?, min?, max?",
+    "Adds a number field: click - or + to step, drag to scrub. Returns its value.",
+    "number(\"${name}\", ${0})"
   )
 ];
 

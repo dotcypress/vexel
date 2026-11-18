@@ -87,6 +87,22 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
+  // The sandboxed sketch cannot download files itself, so it hands its PNG to the app.
+  function saveScreenshot(url: unknown, name: unknown) {
+    if (typeof url !== 'string' || !url.startsWith('data:image/png;base64,')) return;
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = String(name || 'vexel-sketch.png').replace(/[^\w .-]+/g, '_');
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
+  // Asks the sketch for a PNG of its next frame; it comes back as a 'screenshot' message.
+  function takeScreenshot() {
+    frame?.contentWindow?.postMessage({ source: 'vexel', type: 'screenshot' }, '*');
+  }
+
   function clampZoom(z: number) {
     return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
   }
@@ -253,6 +269,8 @@
     if (e.code === 'Space') {
       if (!locked.pan) spaceDown = true;
       e.preventDefault();
+    } else if (e.key === 'f') {
+      document.documentElement.requestFullscreen();
     } else if (e.key === '0') {
       if (!locked.pan && !locked.zoom) resetView();
     } else if (e.key === '+' || e.key === '=') {
@@ -299,6 +317,8 @@
       locked = { pan: d.pan === true, zoom: d.zoom === true };
     } else if (d.type === 'cursor') {
       sketchCursor = d.cursor === 'grab' || d.cursor === 'grabbing' ? d.cursor : '';
+    } else if (d.type === 'screenshot') {
+      saveScreenshot(d.url, d.name);
     } else if (d.type === 'error') {
       onerror(String(d.message));
     } else if (d.type === 'ok') {
@@ -379,6 +399,23 @@
 
     </div>
     <div class="group">
+      <button
+        class="icon"
+        title="Screenshot: save the sketch as a PNG"
+        aria-label="Screenshot"
+        onclick={takeScreenshot}
+      >
+        <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+          <path
+            d="M2.75 5.75c0-.7.55-1.25 1.25-1.25h1.5L6.5 3h3l1 1.5H12c.7 0 1.25.55 1.25 1.25v6c0 .7-.55 1.25-1.25 1.25H4c-.7 0-1.25-.55-1.25-1.25z"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linejoin="round"
+          />
+          <circle cx="8" cy="8.5" r="2.25" fill="none" stroke="currentColor" stroke-width="1.5" />
+        </svg>
+      </button>
       <button
         class="icon"
         title="Export HTML: download the sketch as a standalone page"
@@ -535,7 +572,7 @@
   .selection {
     position: absolute;
     pointer-events: none;
-    background: rgba(91, 108, 240, 0.15);
+    background: rgba(245, 184, 61, 0.15);
     border: 1px dashed var(--accent);
     border-radius: 2px;
   }

@@ -1,13 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
-<defs>
-<linearGradient id="v" gradientUnits="userSpaceOnUse" x1="23" y1="22" x2="64" y2="104"><stop offset="0" stop-color="#5bc7f0"/><stop offset="1" stop-color="#5b6cf0"/></linearGradient>
-<linearGradient id="p" gradientUnits="userSpaceOnUse" x1="64" y1="104" x2="105" y2="22"><stop offset="0" stop-color="#8f5bf0"/><stop offset="1" stop-color="#f05ba6"/></linearGradient>
-</defs>
-<path d="M23 22L64 104" fill="none" stroke="url(#v)" stroke-width="24" stroke-linecap="round"/>
-<g fill="url(#p)">
-<rect x="52" y="92" width="24" height="24" rx="4"/>
-<rect x="65.66666666666667" y="64.66666666666667" width="24" height="24" rx="4"/>
-<rect x="79.33333333333333" y="37.333333333333336" width="24" height="24" rx="4"/>
-<rect x="93" y="10" width="24" height="24" rx="4"/>
-</g>
+<circle cx="64.00" cy="56.40" r="5.64" fill="#f5b83d"/>
+<circle cx="72.90" cy="73.71" r="6.09" fill="#f5b83d"/>
+<circle cx="47.06" cy="62.51" r="6.39" fill="#f5b83d"/>
+<circle cx="79.97" cy="51.76" r="6.64" fill="#ff5c4d"/>
+<circle cx="60.03" cy="86.46" r="6.85" fill="#f5b83d"/>
+<circle cx="50.46" cy="42.72" r="7.05" fill="#f5b83d"/>
+<circle cx="90.48" cy="71.12" r="7.22" fill="#f5b83d"/>
+<circle cx="37.86" cy="77.57" r="7.38" fill="#f5b83d"/>
+<circle cx="74.76" cy="34.55" r="7.53" fill="#ff5c4d"/>
+<circle cx="76.65" cy="94.64" r="7.68" fill="#f5b83d"/>
+<circle cx="32.44" cy="49.23" r="7.81" fill="#f5b83d"/>
+<circle cx="98.80" cy="53.09" r="7.94" fill="#f5b83d"/>
+<circle cx="44.94" cy="96.90" r="8.06" fill="#f5b83d"/>
+<circle cx="55.52" cy="25.41" r="8.18" fill="#ff5c4d"/>
+<circle cx="97.50" cy="87.55" r="8.30" fill="#f5b83d"/>
+<circle cx="22.01" cy="69.44" r="8.41" fill="#f5b83d"/>
+<circle cx="92.15" cy="30.60" r="8.51" fill="#f5b83d"/>
+<circle cx="65.86" cy="108.95" r="8.62" fill="#f5b83d"/>
+<circle cx="31.37" cy="31.21" r="8.72" fill="#ff5c4d"/>
+<circle cx="111.44" cy="66.19" r="8.82" fill="#f5b83d"/>
+<circle cx="26.62" cy="95.20" r="8.91" fill="#f5b83d"/>
 </svg>

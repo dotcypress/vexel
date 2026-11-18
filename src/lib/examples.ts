@@ -23,7 +23,7 @@ export const EXAMPLES: Example[] = [
     id: 'shapes',
     title: 'Shapes',
     group: 'Basics',
-    description: 'point, line, circle, rect, poly, text: every drawing helper once.',
+    description: 'point, line, arrow, bezier, spline, circle, wedge, poly, label, dims: every drawing helper once.',
     code: `// Every drawing helper once. Y points up and (0, 0) is the center.
 clear('#282c34')
 grid()
@@ -34,13 +34,19 @@ points([[-175, 95], [-155, 80], [-135, 92]], palette(1), 8)
 line(-210, 50, -130, 30, palette(2), 3)
 polyline([[-210, 0], [-185, -30], [-160, 0], [-135, -30]], palette(3), 3)
 curve(-210, -80, -170, -10, -130, -80, palette(4), 3)
+bezier(-210, -110, -190, -60, -150, -150, -130, -100, palette(9), 3)
+arrow(-110, 90, -60, 110, 'white', px(2))
+line(-110, 60, -60, 60, { color: 'white', width: px(2), dash: [6, 4] })
+spline([[-110, 20], [-95, 40], [-80, 10], [-65, 35]], palette(10), 3)
 
 circle(0, 70, 30, palette(5))
 circle(0, 70, 40, false, palette(5), px(2))
 ellipse(0, -5, 45, 20, palette(6), 'white', px(1), PI / 8)
 arc(0, -75, 25, 0, PI * 1.5, palette(7), 5)
+wedge(-80, -75, 30, PI / 6, PI * 1.3, palette(11))
 
 rect(140, 40, 60, 50, palette(8), 'white', px(1))
+dims(140, 90, 200, 90)
 rect(210, 40, 25, 50, rgb(255, 160, 40, 0.8))
 
 const star = range(10).map((i) => {
@@ -51,20 +57,23 @@ const star = range(10).map((i) => {
 poly(star, hsl(45, 95, 60), 'white', px(1))
 
 text('shapes', 0, -125, 'white', 20, 'center')
-fit(-230, -145, 480, 270)
+label('label() keeps its size when you zoom', 185, -100, '#aab0c4', 11, 'center')
+fit(-230, -160, 480, 290)
 `
   },
   {
     id: 'clock',
     title: 'Clock',
     group: 'Basics',
-    description: 'line, circle, text, animate: an analog clock.',
+    description: 'line, polar, text, animate: an analog clock.',
     code: `// An analog clock showing the current time.
 fit(-130, -130, 260, 260)
 
+// Clock angles: 0 turns is 12 o'clock, and turns go clockwise.
+const clockAngle = (turns) => PI / 2 - turns * 2 * PI
+
 function hand(turns, length, color, width) {
-  const a = PI / 2 - turns * 2 * PI
-  line(0, 0, length * cos(a), length * sin(a), color, width)
+  line(0, 0, ...polar(length, clockAngle(turns)), color, width)
 }
 
 animate(() => {
@@ -76,13 +85,12 @@ animate(() => {
   clear('#1d2027')
   circle(0, 0, 110, '#262a35', 'white', 3)
   for (let i = 0; i < 60; i++) {
-    const a = (i / 60) * 2 * PI
+    const a = clockAngle(i / 60)
     const inner = i % 5 ? 100 : 92
-    line(inner * cos(a), inner * sin(a), 106 * cos(a), 106 * sin(a), 'white', i % 5 ? 1 : 3)
+    line(...polar(inner, a), ...polar(106, a), 'white', i % 5 ? 1 : 3)
   }
   for (let n = 1; n <= 12; n++) {
-    const a = PI / 2 - (n / 12) * 2 * PI
-    text(n, 78 * cos(a), 78 * sin(a), '#aab0c4', 14, 'center')
+    text(n, ...polar(78, clockAngle(n / 12)), '#aab0c4', 14, 'center')
   }
 
   hand(hours / 12, 55, 'white', 6)
@@ -145,7 +153,7 @@ animate((t, dt) => {
     id: 'solar',
     title: 'Solar system',
     group: 'Basics',
-    description: 'circle, text, toggle: planets on their orbits.',
+    description: 'circle, polar, label, toggle: planets on their orbits.',
     code: `// Planets on circular orbits. Inner planets go around faster.
 const planets = [
   { name: 'Mercury', r: 40, size: 4, color: '#b0a89f' },
@@ -167,13 +175,11 @@ animate((t, dt) => {
   clear('#0d0f14')
   circle(0, 0, 18, '#ffcc44')
   planets.forEach((p, i) => {
-    const angle = i * 2.4 + (time * 200) / p.r ** 1.5
-    const x = p.r * cos(angle)
-    const y = p.r * sin(angle)
+    const [x, y] = polar(p.r, i * 2.4 + (time * 200) / p.r ** 1.5)
     circle(0, 0, p.r, false, 'rgba(255, 255, 255, 0.12)', px(1))
     circle(x, y, p.size, p.color)
     if (labels) {
-      text(p.name, x + p.size + 4, y, '#aab0c4', 10)
+      label(p.name, x + p.size + px(4), y, '#aab0c4', 11)
     }
   })
 })
@@ -183,7 +189,7 @@ animate((t, dt) => {
     id: 'plot',
     title: 'Plot functions',
     group: 'Math',
-    description: 'plot, slider, toggle: y = f(x) with live controls.',
+    description: 'plot, slider, toggle, legend: y = f(x) with live controls.',
     code: `// Graphs of y = f(x). Without animate, the sketch re-runs when a control changes.
 const amp = slider('amplitude', 0, 100, 50)
 const freq = slider('frequency', 5, 100, 30, 1)
@@ -199,13 +205,12 @@ if (showCos) {
 
 clear('#282c34')
 grid(10, null, 50)
-axes()
+axes({ xLabel: 'x', yLabel: 'y' })
 
-const labelX = view.right - px(90)
 for (const [name, f, color] of curves) {
   plot(f, color, px(2))
-  text(name, labelX, f(labelX) + px(12), color, px(13))
 }
+legend(curves.map(([name, f, color]) => [name, color]))
 
 fit(-300, -150, 600, 300)
 `
@@ -214,14 +219,14 @@ fit(-300, -150, 600, 300)
     id: 'rose',
     title: 'Polar rose',
     group: 'Math',
-    description: 'plotPolar, plotParam: r = R cos(n/d theta), spinning.',
+    description: 'plotPolar, plotParam, number: r = R cos(n/d theta), spinning.',
     code: `// Polar roses r = R cos(k theta). With k = n / d the curve closes after d turns.
 const R = 130
 fit(-170, -170, 340, 340)
 
 animate((t) => {
-  const n = slider('n', 1, 12, 5, 1)
-  const d = slider('d', 1, 9, 4, 1)
+  const n = number('n', 5, 1, 1, 12)
+  const d = number('d', 4, 1, 1, 9)
 
   const spin = t * 0.15
   const r = (a) => R * cos((n / d) * a)
@@ -242,13 +247,13 @@ animate((t) => {
     id: 'lissajous',
     title: 'Lissajous curve',
     group: 'Math',
-    description: 'animate, plotParam, trail: x = sin(a t), y = sin(b t + phase).',
+    description: 'plotParam, trail, number: x = sin(a t), y = sin(b t + phase).',
     code: `// A Lissajous curve whose phase slowly drifts.
 fit(-160, -160, 320, 320)
 
 animate((t) => {
-  const a = slider('a', 1, 9, 3, 1)
-  const b = slider('b', 1, 9, 2, 1)
+  const a = number('a', 3, 1, 1, 9)
+  const b = number('b', 2, 1, 1, 9)
   const drift = slider('drift', 0, 1, 0.2, 0.01)
 
   const x = (s) => 120 * sin(a * s)
@@ -260,6 +265,36 @@ animate((t) => {
   plotParam(x, y, hsl(t * 20, 80, 70, 0.6), px(1.5), 0, 2 * PI)
   trail('dot', x(t), y(t), palette(1), 120)
   point(x(t), y(t), 'white', 10)
+})
+`
+  },
+  {
+    id: 'easing',
+    title: 'Easing curves',
+    group: 'Math',
+    description: 'ease, plot, legend: every easing curve, with racing dots.',
+    code: `// Easing curves turn steady time (0 to 1) into motion that speeds up, slows down or bounces.
+// Left: each curve. Right: a dot moving along a track with that curve.
+const S = 200
+const kinds = ['linear', 'in', 'out', 'inOut', 'sine', 'back', 'elastic', 'bounce']
+
+fit(-20, -30, S + 300, S + 60)
+
+animate((t) => {
+  const seconds = slider('seconds', 0.5, 4, 2, 0.1)
+  const progress = min(1, (t / seconds) % 1.4)   // a short pause at the end of each run
+
+  clear('#282c34')
+  rect(0, 0, S, S, false, 'rgba(255, 255, 255, 0.3)', px(1))
+  kinds.forEach((kind, i) => {
+    const color = palette(i)
+    plot((x) => S * ease(x / S, kind), color, px(2), 0, S)
+
+    const y = S - (i * S) / (kinds.length - 1)
+    line(S + 50, y, S + 250, y, 'rgba(255, 255, 255, 0.15)', px(1))
+    point(S + 50 + 200 * ease(progress, kind), y, color, px(10))
+  })
+  legend(kinds.map((kind, i) => [kind, palette(i)]), 'ease(t, kind)')
 })
 `
   },
@@ -321,8 +356,7 @@ animate((t) => {
   for (let i = 0; i < terms; i++) {
     const n = 2 * i + 1
     const r = (4 * R) / (n * PI)
-    const nx = x + r * cos(n * t)
-    const ny = y + r * sin(n * t)
+    const [nx, ny] = add([x, y], polar(r, n * t))
     circle(x, y, r, false, 'rgba(255, 255, 255, 0.25)', px(1))
     line(x, y, nx, ny, 'white', px(1))
     x = nx
@@ -343,7 +377,7 @@ animate((t) => {
     id: 'waves',
     title: 'Wave interference',
     group: 'Math',
-    description: 'heat, drag: two wave sources you can move.',
+    description: 'heat, drag, colorbar: two wave sources you can move.',
     code: `// Two wave sources interfering. Drag the sources around.
 fit(-120, -90, 240, 180)
 
@@ -356,6 +390,7 @@ animate((t) => {
   const wave = ([sx, sy], x, y) => sin(k * hypot(x - sx, y - sy) - t * 4)
 
   heat((x, y) => 0.5 + 0.25 * (wave(a, x, y) + wave(b, x, y)), 'coolwarm')
+  colorbar('coolwarm', -2, 2, 'height')
 })
 `
   },
@@ -363,7 +398,7 @@ animate((t) => {
     id: 'pendulum',
     title: 'Double pendulum',
     group: 'Math',
-    description: 'trail, button: two linked arms going chaotic.',
+    description: 'trail, pause, step: two linked arms going chaotic.',
     code: `// A double pendulum: two linked arms whose motion quickly turns chaotic.
 const L = 100
 const g = 9.81
@@ -392,6 +427,10 @@ fit(-230, -230, 460, 460)
 animate((t, dt) => {
   if (button('restart')) {
     restart()
+  }
+  pause(toggle('pause'))
+  if (button('step')) {
+    step()
   }
 
   const h = min(dt, 0.05) / 20
@@ -422,7 +461,7 @@ animate((t, dt) => {
     id: 'bezier',
     title: 'Bezier curve',
     group: 'Math',
-    description: 'drag, plotParam, lerp: drag the control points.',
+    description: 'drag, bezier, vectors: drag the control points.',
     code: `// A cubic Bezier curve. Drag the control points; move the slider to see how
 // repeated in-between points find the point on the curve.
 const P = [
@@ -433,21 +472,14 @@ const P = [
 ]
 const t = slider('t', 0, 1, 0.4, 0.01)
 
-const between = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t)]
+// The point t of the way from a to b, and one such point on every segment.
+const between = (a, b, t) => add(a, scale(sub(b, a), t))
 const reduce = (pts, t) => pts.slice(1).map((p, i) => between(pts[i], p, t))
-
-function bezier(t) {
-  let pts = P
-  while (pts.length > 1) {
-    pts = reduce(pts, t)
-  }
-  return pts[0]
-}
 
 clear('#282c34')
 grid(20, null, 100)
-polyline(P, 'rgba(255, 255, 255, 0.25)', px(1))
-plotParam((s) => bezier(s)[0], (s) => bezier(s)[1], 'white', px(2.5), 0, 1)
+polyline(P, { color: 'rgba(255, 255, 255, 0.4)', width: px(1), dash: [4, 4] })
+bezier(...P[0], ...P[1], ...P[2], ...P[3], 'white', px(2.5))
 
 let pts = reduce(P, t)
 for (let level = 0; pts.length > 1; level++) {
@@ -465,7 +497,7 @@ fit(-200, -120, 400, 260)
     id: 'triangle',
     title: 'Triangle centers',
     group: 'Math',
-    description: 'drag, poly, circle: drag the corners and watch the Euler line.',
+    description: 'drag, vectors, label: drag the corners and watch the Euler line.',
     code: `// Drag the corners: the centroid G, circumcenter O and orthocenter H
 // always lie on one line, the Euler line.
 const A = drag('A', -120, -70, 9, palette(0))
@@ -483,19 +515,19 @@ function circumcenter([ax, ay], [bx, by], [cx, cy]) {
   ]
 }
 
-const G = [(A[0] + B[0] + C[0]) / 3, (A[1] + B[1] + C[1]) / 3]
+const G = scale(add(add(A, B), C), 1 / 3)
 const O = circumcenter(A, B, C)
-const H = [3 * G[0] - 2 * O[0], 3 * G[1] - 2 * O[1]]
+const H = sub(scale(G, 3), scale(O, 2))
 
 clear('#282c34')
 grid(20, null, 100)
 poly([A, B, C], 'rgba(91, 108, 240, 0.15)', 'white', px(2))
-circle(O[0], O[1], hypot(A[0] - O[0], A[1] - O[1]), false, palette(3), px(1))
-line(O[0], O[1], H[0], H[1], 'rgba(255, 255, 255, 0.5)', px(1))
+circle(...O, dist(A, O), false, palette(3), px(1))
+line(...O, ...H, { color: 'rgba(255, 255, 255, 0.5)', width: px(1), dash: [6, 4] })
 
-for (const [name, [x, y], color] of [['G', G, palette(5)], ['O', O, palette(3)], ['H', H, palette(6)]]) {
-  point(x, y, color, px(9))
-  text(name, x + px(8), y + px(8), color, px(13))
+for (const [name, p, color] of [['G', G, palette(5)], ['O', O, palette(3)], ['H', H, palette(6)]]) {
+  point(...p, color, px(9))
+  label(name, ...add(p, [px(8), px(8)]), color, 13)
 }
 
 fit(-200, -150, 400, 300)
@@ -505,7 +537,7 @@ fit(-200, -150, 400, 300)
     id: 'phase',
     title: 'Phase portrait',
     group: 'Math',
-    description: 'field, trail, mouse.clicked: a damped pendulum in the (theta, omega) plane.',
+    description: 'field, trail, axes labels: a damped pendulum in the (theta, omega) plane.',
     code: `// Phase portrait of a damped pendulum: angle theta across, speed omega up.
 // Click to drop a particle.
 const S = 40
@@ -523,10 +555,8 @@ animate((t, dt) => {
 
   clear('#282c34')
   grid(S / 2, null, S)
-  axes()
+  axes({ xLabel: 'theta', yLabel: 'omega', step: S })
   field((x, y) => [(y / S) * 12, accel(x / S, y / S) * 12], 20, 'rgba(91, 108, 240, 0.6)')
-  text('theta', 6.3 * S, 14, 'white', 12, 'right')
-  text('omega', 8, 3.8 * S, 'white', 12)
 
   const h = min(dt, 0.05) / 4
   particles.forEach((p, i) => {
@@ -568,7 +598,7 @@ animate((t, dt) => {
 
   for (const p of particles) {
     const [vx, vy] = flow(p.x, p.y)
-    const hue = (atan2(vy, vx) * 180) / PI + 200
+    const hue = (angle([vx, vy]) * 180) / PI + 200
     line(p.x - vx * 0.15, p.y - vy * 0.15, p.x, p.y, hsl(hue, 80, 65, min(1, p.life)), px(2))
 
     p.x += vx * min(dt, 0.05)
@@ -590,7 +620,7 @@ animate((t, dt) => {
 const ramp = select('ramp', ['magma', 'inferno', 'plasma', 'turbo', 'viridis', 'cividis', 'hot', 'vexel', 'gray'])
 const maxIter = slider('iterations', 20, 300, 80, 1)
 const cell = slider('cell size', 1, 12, 3, 1)
-const scale = 200
+const unit = 200   // world units per 1 on the complex plane
 
 // Smooth escape time of c = cr + ci i, or maxIter if it never escapes.
 function escape(cr, ci) {
@@ -610,7 +640,7 @@ function escape(cr, ci) {
 
 clear('#282c34')
 heat((x, y) => {
-  const n = escape(x / scale - 0.5, y / scale)
+  const n = escape(x / unit - 0.5, y / unit)
   return n >= maxIter ? 0 : sqrt(max(0, n) / maxIter)
 }, ramp, cell)
 `
@@ -647,41 +677,43 @@ animate((t) => {
     id: 'heatmap',
     title: 'Heatmap from data',
     group: 'Data',
-    description: 'rect, hsl, hover: a grid of [column, row, value] triples.',
+    description: 'grid2d, ramp, textBox, hover: a grid of [column, row, value] triples.',
     code: `// A heatmap from [column, row, value] data. Hover a cell to read its value.
 const cols = 14
 const rows = 9
 const cell = 36
 
-const data = []
-for (let r = 0; r < rows; r++) {
-  for (let c = 0; c < cols; c++) {
-    data.push([c, r, round(50 + 40 * sin(c / 2.2) * cos(r / 1.7) + 10 * sin(c * r))])
-  }
-}
-const shade = normalize(data.map(([c, r, v]) => v))
+const data = grid2d(cols, rows, (c, r) => [c, r, round(50 + 40 * sin(c / 2.2) * cos(r / 1.7) + 10 * sin(c * r))])
+const values = data.map(([c, r, v]) => v)
+const shade = normalize(values)
 
 clear('#282c34')
 fit(0, 0, cols * cell, rows * cell)
 
+let hovered = null
 data.forEach(([c, r, v], i) => {
   const x = c * cell
   const y = r * cell
-  const t = shade[i]
-  rect(x, y, cell - 2, cell - 2, hsl(lerp(240, 0, t), 70, lerp(25, 55, t)))
-
+  rect(x, y, cell - 2, cell - 2, ramp('plasma', shade[i]))
   if (hover(x + cell / 2, y + cell / 2, cell / 2)) {
-    rect(x, y, cell - 2, cell - 2, false, 'white', px(2))
-    text(v, x + cell / 2 - 1, y + cell / 2 - 1, 'white', 13, 'center')
+    hovered = [c, r, v]
   }
 })
+
+// The tooltip goes last so no cell covers it.
+if (hovered) {
+  const [c, r, v] = hovered
+  rect(c * cell, r * cell, cell - 2, cell - 2, false, 'white', px(2))
+  textBox('column ' + c + '\\nrow ' + r + '\\nvalue ' + v, (c + 1) * cell, r * cell)
+}
+colorbar('plasma', min(...values), max(...values))
 `
   },
   {
     id: 'charts',
     title: 'Bars and histogram',
     group: 'Data',
-    description: 'bars, hist: charts from plain arrays.',
+    description: 'bars, hist, transform: charts from plain arrays.',
     code: `// A histogram of random samples, and a bar chart next to it.
 const bins = slider('bins', 5, 40, 20, 1)
 const samples = range(600).map(() => gauss(100, 30))
@@ -694,11 +726,11 @@ axes()
 hist(samples, bins, palette(0))
 text('600 samples', 100, 120, 'white', 10, 'center')
 
-ctx.save()
-ctx.translate(260, 0)
-bars(sales, 20, (i) => palette(i))
-sales.forEach((v, i) => text(v, i * 20 + 10, v + 6, 'white', 8, 'center'))
-ctx.restore()
+// transform shifts the bar chart 260 units right; its own coordinates stay simple.
+transform(() => {
+  bars(sales, 20, (i) => palette(i))
+  sales.forEach((v, i) => text(v, i * 20 + 10, v + 6, 'white', 8, 'center'))
+}, { x: 260 })
 
 fit(-10, -20, 390, 150)
 `
@@ -728,7 +760,7 @@ fit(...bounds(stars))
     id: 'donut',
     title: 'Donut chart',
     group: 'Data',
-    description: 'poly, linspace, text: slices that pop out on hover.',
+    description: 'poly, polar, linspace: slices that pop out on hover.',
     code: `// A donut chart. Hover a slice to pull it out.
 const data = [
   ['Rent', 1200],
@@ -740,32 +772,32 @@ const data = [
 const total = data.reduce((sum, [label, value]) => sum + value, 0)
 
 // Turns go clockwise from the top: 0 is 12 o'clock, 0.25 is 3 o'clock.
-const angle = (turn) => PI / 2 - turn * 2 * PI
+const turnAngle = (turn) => PI / 2 - turn * 2 * PI
 
-function slice(from, to, inner, outer, dx, dy) {
-  const ring = (r, a, b) =>
-    linspace(a, b, 40).map((turn) => [dx + r * cos(angle(turn)), dy + r * sin(angle(turn))])
+// A ring segment between two turns, shifted by offset.
+function slice(from, to, inner, outer, offset) {
+  const ring = (r, a, b) => linspace(a, b, 40).map((turn) => add(offset, polar(r, turnAngle(turn))))
   return [...ring(outer, from, to), ...ring(inner, to, from)]
 }
 
 fit(-220, -150, 440, 300)
 
 animate(() => {
-  const mouseTurn = (angle(0) - atan2(mouse.y, mouse.x)) / (2 * PI)
+  const mouseTurn = (turnAngle(0) - angle([mouse.x, mouse.y])) / (2 * PI)
   const pointerTurn = mouseTurn - floor(mouseTurn)
-  const pointerR = hypot(mouse.x, mouse.y)
+  const pointerR = len([mouse.x, mouse.y])
 
   clear('#282c34')
   let from = 0
   data.forEach(([label, value], i) => {
     const to = from + value / total
     const hovered = pointerR > 60 && pointerR < 110 && pointerTurn >= from && pointerTurn < to
-    const mid = angle((from + to) / 2)
-    const pop = hovered ? 10 : 0
+    const mid = turnAngle((from + to) / 2)
+    const offset = polar(hovered ? 10 : 0, mid)
 
-    poly(slice(from, to, 60, 110, pop * cos(mid), pop * sin(mid)), palette(i), '#282c34', px(2))
+    poly(slice(from, to, 60, 110, offset), palette(i), '#282c34', px(2))
     const percent = round((value / total) * 100) + '%'
-    text(label + ' ' + percent, 130 * cos(mid), 130 * sin(mid), hovered ? 'white' : '#aab0c4', 12, cos(mid) >= 0 ? 'left' : 'right')
+    text(label + ' ' + percent, ...polar(130, mid), hovered ? 'white' : '#aab0c4', 12, cos(mid) >= 0 ? 'left' : 'right')
     if (hovered) {
       text(value, 0, 0, 'white', 22, 'center')
     }
@@ -837,7 +869,7 @@ animate(() => {
     id: 'tree',
     title: 'Fractal tree',
     group: 'Generative',
-    description: 'line, slider: a recursive tree swaying in the wind.',
+    description: 'line, polar, mix: a recursive tree swaying in the wind.',
     code: `// A fractal tree: every branch splits into two smaller ones.
 fit(-200, -160, 400, 330)
 
@@ -849,9 +881,8 @@ animate((t) => {
 
   function branch(x, y, angle, length, level) {
     const k = level / depth
-    const x2 = x + length * cos(angle)
-    const y2 = y + length * sin(angle)
-    line(x, y, x2, y2, hsl(lerp(30, 120, k), 60, lerp(30, 55, k)), max(1, (depth - level) * 1.5))
+    const [x2, y2] = add([x, y], polar(length, angle))
+    line(x, y, x2, y2, mix('#7a4a2a', '#6fd36f', k), max(1, (depth - level) * 1.5))
     if (level >= depth) {
       return
     }
@@ -868,6 +899,49 @@ animate((t) => {
 `
   },
   {
+    id: 'terrain',
+    title: 'Noise terrain',
+    group: 'Generative',
+    description: 'noise, heat, mix: an endless map from layered Perlin noise.',
+    code: `// A map from layered Perlin noise. Pan around: the land goes on forever.
+const size = slider('feature size', 50, 400, 150)
+const layers = slider('layers', 1, 6, 4, 1)
+const sea = slider('sea level', 0, 1, 0.5, 0.01)
+seed(slider('seed', 1, 100, 1, 1))
+
+// Several layers of noise, each twice as fine and half as strong.
+function height(x, y) {
+  let sum = 0
+  let total = 0
+  for (let i = 0; i < layers; i++) {
+    const k = 2 ** i
+    sum += noise((x * k) / size, (y * k) / size, i * 10) / k
+    total += 1 / k
+  }
+  // Noise mostly stays near 0.5, so stretch it to use the whole 0..1 range.
+  return clamp(0.5 + (sum / total - 0.5) * 2.5)
+}
+
+// Height (0..1) to a map color: deep to shallow water, beach, forest, rock and snow.
+function terrain(h) {
+  if (h < sea) {
+    return mix('#0f2f5c', '#3f8fd0', h / sea)
+  }
+  const land = (h - sea) / (1 - sea)
+  if (land < 0.05) {
+    return '#d8c88e'
+  }
+  if (land < 0.6) {
+    return mix('#5aa34f', '#2b5a2b', land / 0.6)
+  }
+  return land < 0.85 ? '#7a6a5a' : '#f2f2f2'
+}
+
+clear()
+heat(height, terrain)
+`
+  },
+  {
     id: 'walk',
     title: 'Random walks',
     group: 'Generative',
@@ -881,17 +955,14 @@ clear('#14161b')
 grid(50, null, 250)
 
 for (let w = 0; w < walkers; w++) {
-  let x = 0
-  let y = 0
-  const path = [[x, y]]
+  let p = [0, 0]
+  const path = [p]
   for (let i = 0; i < steps; i++) {
-    const a = random(2 * PI)
-    x += 5 * cos(a)
-    y += 5 * sin(a)
-    path.push([x, y])
+    p = add(p, polar(5, random(2 * PI)))
+    path.push(p)
   }
   polyline(path, hsl(w * 30, 80, 65, 0.7), px(1.5))
-  point(x, y, hsl(w * 30, 80, 65), 8)
+  point(...p, hsl(w * 30, 80, 65), 8)
 }
 
 point(0, 0, 'white', 10)
@@ -931,26 +1002,23 @@ animate((t, dt) => {
     id: 'koch',
     title: 'Koch snowflake',
     group: 'Generative',
-    description: 'poly, recursion: a fractal edge.',
+    description: 'poly, vectors, number: a fractal edge.',
     code: `// The Koch snowflake: replace the middle third of every edge with a spike, again and again.
-const depth = slider('depth', 0, 6, 4, 1)
-
-const rotate = ([x, y], a) => [x * cos(a) - y * sin(a), x * sin(a) + y * cos(a)]
+const depth = number('depth', 4, 1, 0, 6)
 
 // Points from a toward b, not including b.
 function koch(a, b, level) {
   if (level === 0) {
     return [a]
   }
-  const d = [(b[0] - a[0]) / 3, (b[1] - a[1]) / 3]
-  const p1 = [a[0] + d[0], a[1] + d[1]]
-  const p3 = [a[0] + 2 * d[0], a[1] + 2 * d[1]]
-  const spike = rotate(d, -PI / 3)
-  const p2 = [p1[0] + spike[0], p1[1] + spike[1]]
+  const third = scale(sub(b, a), 1 / 3)
+  const p1 = add(a, third)
+  const p3 = add(p1, third)
+  const p2 = add(p1, rot(third, -PI / 3))
   return [...koch(a, p1, level - 1), ...koch(p1, p2, level - 1), ...koch(p2, p3, level - 1), ...koch(p3, b, level - 1)]
 }
 
-const corners = [90, 210, 330].map((deg) => [120 * cos((deg * PI) / 180), 120 * sin((deg * PI) / 180)])
+const corners = [90, 210, 330].map((deg) => polar(120, (deg * PI) / 180))
 const outline = corners.flatMap((c, i) => koch(c, corners[(i + 1) % 3], depth))
 
 clear('#1d2027')
@@ -966,7 +1034,6 @@ fit(-160, -130, 320, 300)
     description: 'key, random, ellipse: a tiny arrow-key game.',
     code: `// Collect the coins with the arrow keys or WASD. Click the preview first.
 const place = () => [random(-260, 260), random(-170, 170)]
-const clamp = (v, lo, hi) => min(hi, max(lo, v))
 const axis = (plus, minus) => (plus ? 1 : 0) - (minus ? 1 : 0)
 
 let x = 0
@@ -985,7 +1052,7 @@ animate((t, dt) => {
   y = clamp(y + axis(key('ArrowUp') || key('w'), key('ArrowDown') || key('s')) * step, -190, 190)
 
   coins = coins.map((coin) => {
-    if (hypot(coin[0] - x, coin[1] - y) > 20) {
+    if (dist(coin, [x, y]) > 20) {
       return coin
     }
     score++
@@ -1009,7 +1076,7 @@ animate((t, dt) => {
     id: 'mines',
     title: 'Mines',
     group: 'Interactive',
-    description: 'mouse.clicked, button, key, lockView: a minesweeping puzzle.',
+    description: 'mouse.clicked, grid2d, key, lockView: a minesweeping puzzle.',
     code: `// Open every safe cell without hitting a mine. Numbers count the mines around.
 // Click to open a cell; hold F or Shift while clicking to flag it.
 const W = 12
@@ -1021,7 +1088,7 @@ const COLORS = ['', '#6c8cff', '#5fd38d', '#ff6b6b', '#b48cff', '#ffb547', '#4fd
 let cells, started, over, won
 
 function newGame() {
-  cells = range(W * H).map((i) => ({ x: i % W, y: floor(i / W), mine: false, open: false, flag: false, n: 0 }))
+  cells = grid2d(W, H, (x, y) => ({ x, y, mine: false, open: false, flag: false, n: 0 }))
   started = over = won = false
 }
 
@@ -1122,13 +1189,13 @@ animate(() => {
     id: 'life',
     title: 'Game of Life',
     group: 'Interactive',
-    description: 'every, button, toggle, mouse.clicked: cells that live and die.',
+    description: 'every, grid2d, button, mouse.clicked: cells that live and die.',
     code: `// Conway's Game of Life. Click cells to flip them.
 const W = 40
 const H = 26
 const S = 10
 
-const randomCells = () => range(W * H).map(() => random() < 0.25)
+const randomCells = () => grid2d(W, H, () => random() < 0.25)
 let cells = randomCells()
 
 const alive = (x, y) => cells[((y + H) % H) * W + ((x + W) % W)]
@@ -1145,7 +1212,7 @@ function neighbors(x, y) {
   return n
 }
 
-function step() {
+function advance() {
   cells = cells.map((on, i) => {
     const n = neighbors(i % W, floor(i / W))
     return n === 3 || (on && n === 2)
@@ -1159,7 +1226,7 @@ animate(() => {
   const playing = toggle('play', true)
   const speed = slider('steps per second', 1, 30, 10, 1)
   if (button('step')) {
-    step()
+    advance()
   }
   if (button('randomize')) {
     cells = randomCells()
@@ -1168,7 +1235,7 @@ animate(() => {
     cells = cells.map(() => false)
   }
   if (playing) {
-    every(1 / speed, step)
+    every(1 / speed, advance)
   }
 
   const x = floor(mouse.x / S)
@@ -1218,7 +1285,7 @@ function newGame() {
   placeFood()
 }
 
-function step() {
+function move() {
   if (!same(next, [-dir[0], -dir[1]])) {
     dir = next
   }
@@ -1262,7 +1329,7 @@ animate((t, dt) => {
   timer += min(dt, 0.25)
   while (!over && timer >= 1 / speed) {
     timer -= 1 / speed
-    step()
+    move()
   }
 
   clear('#1d2027')
@@ -1294,8 +1361,6 @@ let ball
 let cpuY = 0
 let you = 0
 let cpu = 0
-
-const clamp = (v, lo, hi) => min(hi, max(lo, v))
 
 function serve(direction) {
   ball = { x: 0, y: 0, vx: 220 * direction, vy: random(-120, 120) }
@@ -1356,13 +1421,11 @@ animate((t, dt) => {
     id: 'paint',
     title: 'Kaleidoscope paint',
     group: 'Interactive',
-    description: 'mouse, button, polyline: draw with rainbow ink and mirror symmetry.',
+    description: 'mouse, rot, screenshot: draw with rainbow ink and mirror symmetry.',
     code: `// Draw with the mouse; every stroke is repeated around the center.
 // Hold Space and drag to pan.
 const strokes = []
 let current = null
-
-const rotate = ([x, y], a) => [x * cos(a) - y * sin(a), x * sin(a) + y * cos(a)]
 
 fit(-300, -200, 600, 400)
 
@@ -1375,6 +1438,9 @@ animate((t) => {
   }
   if (button('clear')) {
     strokes.length = 0
+  }
+  if (button('save PNG')) {
+    screenshot('kaleidoscope')
   }
 
   if (mouse.clicked) {
@@ -1393,13 +1459,39 @@ animate((t) => {
     for (let k = 0; k < copies; k++) {
       const a = (k * 2 * PI) / copies
       const color = hsl(hue + k * 8, 85, 65)
-      polyline(points.map((p) => rotate(p, a)), color, px(width))
+      polyline(points.map((p) => rot(p, a)), color, px(width))
       if (mirror) {
-        polyline(points.map(([x, y]) => rotate([x, -y], a)), color, px(width))
+        polyline(points.map(([x, y]) => rot([x, -y], a)), color, px(width))
       }
     }
   }
 })
+`
+  },
+  {
+    id: 'mixer',
+    title: 'Color mixer',
+    group: 'Interactive',
+    description: 'swatch, slider2d, mix, alpha: blend two palette colors.',
+    code: `// Pick two colors and see them blended. The pad moves the second circle.
+const first = swatch('first', 0)
+const second = swatch('second', 6)
+const opacity = slider('opacity', 0, 1, 0.6, 0.01)
+const [dx, dy] = slider2d('offset', -80, 80, [50, 0])
+
+clear('#282c34')
+
+// A strip of steps from the first color to the second.
+for (let i = 0; i <= 10; i++) {
+  rect(i * 30 - 165, 90, 28, 40, mix(first, second, i / 10))
+  label(i * 10 + '%', i * 30 - 151, 80, '#aab0c4', 10, 'center')
+}
+
+// Two see-through circles: where they overlap, the colors add up.
+circle(-50, -30, 70, alpha(first, opacity))
+circle(-50 + dx, -30 + dy, 70, alpha(second, opacity))
+
+fit(-180, -120, 360, 260)
 `
   }
 ];

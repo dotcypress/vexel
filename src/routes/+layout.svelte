@@ -18,7 +18,7 @@
     --border: #2c303c;
     --text: #d7dae0;
     --muted: #8b91a1;
-    --accent: #5b6cf0;
+    --accent: #f5b83d;
     /* Height of the bars along the bottom: the console bar and the preview hint bar. */
     --bottom-bar-height: 28px;
     color-scheme: dark;

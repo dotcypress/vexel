@@ -1,16 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-<defs>
-<linearGradient id="v" gradientUnits="userSpaceOnUse" x1="23" y1="22" x2="64" y2="104"><stop offset="0" stop-color="#5bc7f0"/><stop offset="1" stop-color="#5b6cf0"/></linearGradient>
-<linearGradient id="p" gradientUnits="userSpaceOnUse" x1="64" y1="104" x2="105" y2="22"><stop offset="0" stop-color="#8f5bf0"/><stop offset="1" stop-color="#f05ba6"/></linearGradient>
-</defs>
-<rect width="64" height="64" rx="14" fill="#0b0d14"/>
-<g transform="translate(32 32) scale(0.46) translate(-64.5 -63)">
-<path d="M23 22L64 104" fill="none" stroke="url(#v)" stroke-width="24" stroke-linecap="round"/>
-<g fill="url(#p)">
-<rect x="52" y="92" width="24" height="24" rx="4"/>
-<rect x="65.66666666666667" y="64.66666666666667" width="24" height="24" rx="4"/>
-<rect x="79.33333333333333" y="37.333333333333336" width="24" height="24" rx="4"/>
-<rect x="93" y="10" width="24" height="24" rx="4"/>
-</g>
-</g>
+<rect width="64" height="64" rx="14" fill="#15171e"/>
+<circle cx="32.00" cy="28.61" r="2.52" fill="#f5b83d"/>
+<circle cx="35.97" cy="36.34" r="2.72" fill="#f5b83d"/>
+<circle cx="24.44" cy="31.34" r="2.85" fill="#f5b83d"/>
+<circle cx="39.13" cy="26.54" r="2.96" fill="#ff5c4d"/>
+<circle cx="30.23" cy="42.03" r="3.06" fill="#f5b83d"/>
+<circle cx="25.96" cy="22.50" r="3.15" fill="#f5b83d"/>
+<circle cx="43.82" cy="35.18" r="3.22" fill="#f5b83d"/>
+<circle cx="20.33" cy="38.06" r="3.30" fill="#f5b83d"/>
+<circle cx="36.80" cy="18.85" r="3.36" fill="#ff5c4d"/>
+<circle cx="37.65" cy="45.68" r="3.43" fill="#f5b83d"/>
+<circle cx="17.91" cy="25.41" r="3.49" fill="#f5b83d"/>
+<circle cx="47.53" cy="27.13" r="3.55" fill="#f5b83d"/>
+<circle cx="23.49" cy="46.69" r="3.60" fill="#f5b83d"/>
+<circle cx="28.21" cy="14.77" r="3.65" fill="#ff5c4d"/>
+<circle cx="46.95" cy="42.51" r="3.70" fill="#f5b83d"/>
+<circle cx="13.26" cy="34.43" r="3.75" fill="#f5b83d"/>
+<circle cx="44.57" cy="17.09" r="3.80" fill="#f5b83d"/>
+<circle cx="32.83" cy="52.07" r="3.85" fill="#f5b83d"/>
+<circle cx="17.43" cy="17.36" r="3.89" fill="#ff5c4d"/>
+<circle cx="53.18" cy="32.98" r="3.94" fill="#f5b83d"/>
+<circle cx="15.31" cy="45.93" r="3.98" fill="#f5b83d"/>
 </svg>

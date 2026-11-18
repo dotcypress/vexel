@@ -113,9 +113,17 @@ function isStyle(v) {
   );
 }
 
-// Applies a line color and width, either positional or as { color, width }.
+// { dash: [on, off, ...] } in screen pixels, for any stroked helper's style object.
+function applyDash(d) {
+  if (Array.isArray(d)) {
+    ctx.setLineDash(d.map(function (v) { return v / cam.zoom; }));
+  }
+}
+
+// Applies a line color and width, either positional or as { color, width, dash }.
 function useStroke(color, lineWidth) {
   if (isStyle(color)) {
+    applyDash(color.dash);
     lineWidth = color.width;
     color = color.color;
   }
@@ -205,6 +213,7 @@ function polyline(list, color, lineWidth, closed) {
 function paint(fill, stroke, lineWidth) {
   if (isStyle(fill)) {
     var o = fill;
+    applyDash(o.dash);
     lineWidth = o.width;
     stroke = o.stroke;
     fill = o.fill != null ? o.fill : o.stroke != null ? false : undefined;
@@ -278,11 +287,13 @@ function hsl(h, s, l, a) {
   return 'hsla(' + h + ', ' + s + '%, ' + l + '%, ' + (a == null ? 1 : a) + ')';
 }
 
+// Sunflower 16: brand gold first, then colors that each differ strongly from the one
+// before. The first 8 stay distinct for red-green color blindness (deuteranopia).
 var PALETTE = [
-  '#5b6cf0', '#f0725b', '#5bd6a0', '#f0c75b',
-  '#c75bf0', '#5bc7f0', '#f05ba6', '#a6f05b',
-  '#f0955b', '#e4f05b', '#5bf073', '#5bf0dd',
-  '#5b9bf0', '#8f5bf0', '#f05bd9', '#f05b7c'
+  '#f5b83d', '#509fe4', '#ff6450', '#00ba80',
+  '#cb93ff', '#bae98a', '#ff93c6', '#41b4bc',
+  '#ff9a3d', '#6b7cff', '#8fe0b0', '#e05ad0',
+  '#d9c08c', '#9fb4ff', '#e5484d', '#c9ccd6'
 ];
 
 // The i-th color of a built-in palette. Wraps around, so any integer works.
@@ -353,8 +364,12 @@ function tickStep(minPx) {
 }
 
 // X and Y axes through the origin, with value labels. Labels stay on screen
-// by sticking to the edge when an axis is off-screen.
+// by sticking to the edge when an axis is off-screen. axes(color?) or
+// axes({ color, xLabel, yLabel, step }): step is the label spacing in world units
+// (doubled until labels fit); xLabel and yLabel name the axes.
 function axes(color) {
+  var o = isStyle(color) ? color : {};
+  if (isStyle(color)) color = o.color;
   ctx.save();
   ctx.strokeStyle = color || 'rgba(255, 255, 255, 0.3)';
   ctx.lineWidth = 1 / cam.zoom;
@@ -369,6 +384,10 @@ function axes(color) {
   var w = window.innerWidth;
   var h = window.innerHeight;
   var step = tickStep(70);
+  if (o.step > 0) {
+    step = o.step;
+    while (step * cam.zoom < 40) step *= 2;
+  }
   var ax = Math.min(Math.max(cam.x, 0), Math.max(w - 40, 0));
   var ay = Math.min(Math.max(cam.y, 0), Math.max(h - 16, 0));
   var i, v, last;
@@ -389,6 +408,17 @@ function axes(color) {
     if (i === 0) continue;
     v = i * step;
     ctx.fillText(String(Number(v.toPrecision(10))), ax + 4, cam.y - v * cam.zoom - 2);
+  }
+  ctx.font = '12px ui-sans-serif, system-ui, sans-serif';
+  if (o.xLabel != null) {
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(String(o.xLabel), w - 8, Math.max(ay - 4, 16));
+  }
+  if (o.yLabel != null) {
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(String(o.yLabel), Math.min(ax + 8, w - 60), 8);
   }
   ctx.restore();
 }
@@ -452,7 +482,7 @@ function field(f, step, color, lineWidth) {
 // Built-in colormaps for heat() and scatter(), as evenly spaced color stops.
 // Sequential: viridis, magma, inferno, plasma, cividis (color-blind safe), turbo, hot, gray.
 // Diverging: coolwarm, with a neutral middle for values on both sides of zero.
-// Brand: vexel, the logo gradient.
+// Brand: vexel, a sunflower: dark center, green, gold petals.
 var RAMPS = Object.create(null);
 RAMPS.viridis = ['#440154', '#3b528b', '#21908d', '#5dc863', '#fde725'];
 RAMPS.magma = ['#000004', '#51127c', '#b73779', '#fc8761', '#fcfdbf'];
@@ -463,7 +493,7 @@ RAMPS.turbo = ['#30123b', '#4777ef', '#1ac7c2', '#a2fc3c', '#fabb38', '#e4460a',
 RAMPS.hot = ['#000000', '#b30000', '#ff7f00', '#ffe135', '#ffffff'];
 RAMPS.coolwarm = ['#3b4cc0', '#7b9ff9', '#c0d4f5', '#f2cbb7', '#ee8468', '#b40426'];
 RAMPS.gray = ['#000000', '#ffffff'];
-RAMPS.vexel = ['#5bc7f0', '#5b6cf0', '#8f5bf0', '#f05ba6'];
+RAMPS.vexel = ['#1b1f4b', '#22667a', '#5fa86a', '#f5b83d', '#fff3b0'];
 var rampLuts = Object.create(null);
 
 // 256 precomputed CSS colors for a built-in colormap.
@@ -656,10 +686,12 @@ function once(fn, key) {
 // every run, so re-runs triggered by panning or controls draw the same picture.
 var DEFAULT_SEED = 1;
 var rngState = DEFAULT_SEED;
+var currentSeed = DEFAULT_SEED;   // the last seed, which noise() follows
 var spareGauss = null;
 
 function seed(n) {
   rngState = (Number(n) || 0) >>> 0;
+  currentSeed = rngState;
   spareGauss = null;
 }
 
@@ -1396,6 +1428,9 @@ function log() {
 function controlHeight(c) {
   if (c.kind === 'toggle') return TOGGLE_ROW;
   if (c.kind === 'button') return BUTTON_ROW;
+  if (c.kind === 'pad') return PAD_ROW;
+  if (c.kind === 'swatch') return SWATCH_ROW;
+  if (c.kind === 'number') return NUMBER_ROW;
   return c.kind === 'select' ? SELECT_ROW : SLIDER_ROW;
 }
 
@@ -1426,6 +1461,29 @@ function updateSliders() {
           sliders[i].value = sliders[i].value ? 0 : 1;
           dirty = true;
           post({ source: 'vexel', type: 'slider', name: sliders[i].name, value: sliders[i].value });
+        } else if (sliders[i].kind === 'number') {
+          var ns = sliders[i];
+          var rel = sx - r.x;
+          if (rel < 28 || rel > SLIDER_W - 28) {
+            var nv = Number(clamp(ns.value + (rel < 28 ? -ns.step : ns.step), ns.min, ns.max).toPrecision(12));
+            if (nv !== ns.value) {
+              ns.value = nv;
+              dirty = true;
+              post({ source: 'vexel', type: 'slider', name: ns.name, value: nv });
+            }
+          } else {
+            ns.dragX = sx;
+            ns.dragV = ns.value;
+            activeSlider = ns;
+          }
+        } else if (sliders[i].kind === 'swatch') {
+          var col = Math.floor((sx - r.x) / (SLIDER_W / 8));
+          var srow = Math.floor((sy - r.y - 18) / 16);
+          if (col >= 0 && col < 8 && srow >= 0 && srow < 2) {
+            sliders[i].value = srow * 8 + col;
+            dirty = true;
+            post({ source: 'vexel', type: 'slider', name: sliders[i].name, value: sliders[i].value });
+          }
         } else if (sliders[i].kind === 'select') {
           var count = sliders[i].options.length;
           sliders[i].value = (sliders[i].value + (sx < r.x + SLIDER_W / 2 ? count - 1 : 1)) % count;
@@ -1481,6 +1539,32 @@ function updateSliders() {
   }
   if (!activeSlider) return;
   var row = sliderRow(sliders.indexOf(activeSlider));
+  if (activeSlider.kind === 'number') {
+    var nm = activeSlider;
+    var scrub = Math.round((sx - nm.dragX) / 6) * nm.step;
+    var nval = Number(clamp(nm.dragV + scrub, nm.min, nm.max).toPrecision(12));
+    if (nval !== nm.value) {
+      nm.value = nval;
+      dirty = true;
+      post({ source: 'vexel', type: 'slider', name: nm.name, value: nval });
+    }
+    return;
+  }
+  if (activeSlider.kind === 'pad') {
+    var pd = activeSlider;
+    var fx = clamp((sx - row.x) / SLIDER_W, 0, 1);
+    var fy = clamp(1 - (sy - row.y - 18) / PAD_H, 0, 1);
+    var nvx = Number((pd.min + fx * (pd.max - pd.min)).toPrecision(12));
+    var nvy = Number((pd.min + fy * (pd.max - pd.min)).toPrecision(12));
+    if (nvx !== pd.vx || nvy !== pd.vy) {
+      pd.vx = nvx;
+      pd.vy = nvy;
+      dirty = true;
+      post({ source: 'vexel', type: 'slider', name: pd.name + ':x', value: nvx });
+      post({ source: 'vexel', type: 'slider', name: pd.name + ':y', value: nvy });
+    }
+    return;
+  }
   var t = Math.min(1, Math.max(0, (sx - row.x) / SLIDER_W));
   var v = clampSlider(activeSlider, activeSlider.min + t * (activeSlider.max - activeSlider.min));
   if (v !== activeSlider.value) {
@@ -1489,6 +1573,11 @@ function updateSliders() {
     post({ source: 'vexel', type: 'slider', name: activeSlider.name, value: v });
   }
 }
+
+// Brand colors for the controls: gold, with dark text on top of it.
+var ACCENT = '#f5b83d';
+var ACCENT_LIGHT = '#ffd27a';
+var ON_ACCENT = '#15171e';
 
 function overlayBox(x, y, w, h) {
   ctx.fillStyle = 'rgba(21, 23, 30, 0.88)';
@@ -1499,7 +1588,7 @@ function overlayBox(x, y, w, h) {
 }
 
 function drawOverlays() {
-  if (!sliders.length && !hudLines.length && !handleList.length) return;
+  if (!sliders.length && !hudLines.length && !handleList.length && !legends.length && !colorbars.length) return;
   var mono = 'ui-monospace, Menlo, Consolas, monospace';
   var i;
   ctx.save();
@@ -1527,6 +1616,7 @@ function drawOverlays() {
     ctx.stroke();
   }
 
+  var leftY = 12;
   if (hudLines.length) {
     var width = 0;
     for (i = 0; i < hudLines.length; i++) {
@@ -1538,6 +1628,52 @@ function drawOverlays() {
     for (i = 0; i < hudLines.length; i++) {
       ctx.fillText(hudLines[i], 18, 16 + i * 15);
     }
+    leftY += hudLines.length * 15 + 8 + 8;
+  }
+
+  for (i = 0; i < legends.length; i++) {
+    var lg = legends[i];
+    var lw = lg.title ? ctx.measureText(lg.title).width : 0;
+    for (var li = 0; li < lg.rows.length; li++) {
+      lw = Math.max(lw, ctx.measureText(lg.rows[li][0]).width + 18);
+    }
+    var top = lg.title ? 18 : 0;
+    var lh = top + lg.rows.length * 16 + 8;
+    overlayBox(12, leftY, lw + 12, lh);
+    ctx.textAlign = 'left';
+    if (lg.title) {
+      ctx.fillStyle = '#aab0c4';
+      ctx.fillText(lg.title, 18, leftY + 6);
+    }
+    for (li = 0; li < lg.rows.length; li++) {
+      var ly = leftY + 4 + top + li * 16;
+      ctx.fillStyle = lg.rows[li][1] || INK;
+      ctx.fillRect(18, ly + 2, 10, 10);
+      ctx.fillStyle = '#e6e8f0';
+      ctx.fillText(lg.rows[li][0], 36, ly + 2);
+    }
+    leftY += lh + 8;
+  }
+
+  for (i = 0; i < colorbars.length; i++) {
+    var cb = colorbars[i];
+    var ctop = cb.title ? 18 : 4;
+    var ch = ctop + 12 + 18;
+    overlayBox(12, leftY, 172, ch);
+    ctx.textAlign = 'left';
+    if (cb.title) {
+      ctx.fillStyle = '#aab0c4';
+      ctx.fillText(cb.title, 18, leftY + 6);
+    }
+    for (var ci = 0; ci < 80; ci++) {
+      ctx.fillStyle = cb.fn(ci / 79) || 'transparent';
+      ctx.fillRect(18 + ci * 2, leftY + ctop, 2.5, 12);
+    }
+    ctx.fillStyle = '#e6e8f0';
+    ctx.fillText(fmtNumber(cb.min), 18, leftY + ctop + 16);
+    ctx.textAlign = 'right';
+    ctx.fillText(fmtNumber(cb.max), 178, leftY + ctop + 16);
+    leftY += ch + 8;
   }
 
   if (sliders.length) {
@@ -1550,10 +1686,10 @@ function drawOverlays() {
         ctx.fillStyle = '#aab0c4';
         ctx.textAlign = 'left';
         ctx.fillText(s.name, r.x, r.y + 2);
-        ctx.fillStyle = s.value ? '#5b6cf0' : 'rgba(255, 255, 255, 0.18)';
+        ctx.fillStyle = s.value ? ACCENT : 'rgba(255, 255, 255, 0.18)';
         ctx.fillRect(r.x + SLIDER_W - 14, r.y, 14, 14);
         if (s.value) {
-          ctx.strokeStyle = '#fff';
+          ctx.strokeStyle = ON_ACCENT;
           ctx.lineWidth = 2;
           ctx.beginPath();
           ctx.moveTo(r.x + SLIDER_W - 11, r.y + 7);
@@ -1564,14 +1700,75 @@ function drawOverlays() {
         continue;
       }
       if (s.kind === 'button') {
-        ctx.fillStyle = s === pressedButton ? '#7d8bff' : '#5b6cf0';
+        ctx.fillStyle = s === pressedButton ? ACCENT_LIGHT : ACCENT;
         ctx.beginPath();
         if (ctx.roundRect) ctx.roundRect(r.x, r.y, SLIDER_W, 22, 4);
         else ctx.rect(r.x, r.y, SLIDER_W, 22);
         ctx.fill();
-        ctx.fillStyle = '#fff';
+        ctx.fillStyle = ON_ACCENT;
         ctx.textAlign = 'center';
         ctx.fillText(s.name, r.x + SLIDER_W / 2, r.y + 6);
+        continue;
+      }
+      if (s.kind === 'pad') {
+        var pspan = s.max - s.min;
+        var px0 = r.x + SLIDER_W * (pspan ? (s.vx - s.min) / pspan : 0.5);
+        var py0 = r.y + 18 + PAD_H * (1 - (pspan ? (s.vy - s.min) / pspan : 0.5));
+        ctx.fillStyle = '#aab0c4';
+        ctx.textAlign = 'left';
+        ctx.fillText(s.name, r.x, r.y + 2);
+        ctx.fillStyle = '#e6e8f0';
+        ctx.textAlign = 'right';
+        ctx.fillText(fmtNumber(s.vx) + ', ' + fmtNumber(s.vy), r.x + SLIDER_W, r.y + 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.fillRect(r.x, r.y + 18, SLIDER_W, PAD_H);
+        ctx.strokeStyle = 'rgba(245, 184, 61, 0.6)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(px0, r.y + 18);
+        ctx.lineTo(px0, r.y + 18 + PAD_H);
+        ctx.moveTo(r.x, py0);
+        ctx.lineTo(r.x + SLIDER_W, py0);
+        ctx.stroke();
+        ctx.fillStyle = '#e6e8f0';
+        ctx.beginPath();
+        ctx.arc(px0, py0, 6, 0, Math.PI * 2);
+        ctx.fill();
+        continue;
+      }
+      if (s.kind === 'number') {
+        ctx.fillStyle = '#aab0c4';
+        ctx.textAlign = 'left';
+        ctx.fillText(s.name, r.x, r.y + 2);
+        ctx.fillStyle = s === activeSlider ? 'rgba(245, 184, 61, 0.3)' : 'rgba(255, 255, 255, 0.1)';
+        ctx.fillRect(r.x, r.y + 17, SLIDER_W, 20);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.fillRect(r.x, r.y + 17, 24, 20);
+        ctx.fillRect(r.x + SLIDER_W - 24, r.y + 17, 24, 20);
+        ctx.fillStyle = '#e6e8f0';
+        ctx.textAlign = 'center';
+        ctx.fillText(fmtNumber(s.value), r.x + SLIDER_W / 2, r.y + 22);
+        ctx.fillStyle = '#aab0c4';
+        ctx.fillText('-', r.x + 12, r.y + 22);
+        ctx.fillText('+', r.x + SLIDER_W - 12, r.y + 22);
+        continue;
+      }
+      if (s.kind === 'swatch') {
+        ctx.fillStyle = '#aab0c4';
+        ctx.textAlign = 'left';
+        ctx.fillText(s.name, r.x, r.y + 2);
+        var sw = SLIDER_W / 8;
+        for (var k = 0; k < 16; k++) {
+          var kx = r.x + (k % 8) * sw;
+          var ky = r.y + 18 + Math.floor(k / 8) * 16;
+          ctx.fillStyle = palette(k);
+          ctx.fillRect(kx + 1, ky + 1, sw - 2, 14);
+          if (k === s.value) {
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(kx + 1, ky + 1, sw - 2, 14);
+          }
+        }
         continue;
       }
       if (s.kind === 'select') {
@@ -1604,7 +1801,7 @@ function drawOverlays() {
       ctx.fillText(fmtNumber(s.value), r.x + SLIDER_W, r.y + 2);
       ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
       ctx.fillRect(r.x, ty, SLIDER_W, 4);
-      ctx.fillStyle = '#5b6cf0';
+      ctx.fillStyle = ACCENT;
       ctx.fillRect(r.x, ty, SLIDER_W * t, 4);
       ctx.fillStyle = '#e6e8f0';
       ctx.beginPath();
@@ -1615,6 +1812,609 @@ function drawOverlays() {
 
   ctx.restore();
   hudLines = [];
+  legends = [];
+  colorbars = [];
+}
+
+// arrow(x1, y1, x2, y2, color?, lineWidth?, head?): a line with a filled head at (x2, y2).
+// head is the head length in screen pixels (default 8), capped at half the arrow.
+function arrow(x1, y1, x2, y2, color, lineWidth, head) {
+  if (isStyle(color)) head = color.head;
+  var dx = x2 - x1;
+  var dy = y2 - y1;
+  var len = Math.sqrt(dx * dx + dy * dy);
+  if (!(len > 0)) return;
+  var h = Math.min(px(head > 0 ? head : 8), len * 0.5);
+  var a = Math.atan2(dy, dx);
+  ctx.save();
+  useStroke(color, lineWidth);
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2 - h * 0.8 * Math.cos(a), y2 - h * 0.8 * Math.sin(a));
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = ctx.strokeStyle;
+  ctx.beginPath();
+  ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - h * Math.cos(a - 0.4), y2 - h * Math.sin(a - 0.4));
+  ctx.lineTo(x2 - h * Math.cos(a + 0.4), y2 - h * Math.sin(a + 0.4));
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+// Cubic Bezier from (x1, y1) to (x2, y2) with control points (c1x, c1y) and (c2x, c2y).
+function bezier(x1, y1, c1x, c1y, c2x, c2y, x2, y2, color, lineWidth) {
+  ctx.save();
+  useStroke(color, lineWidth);
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.bezierCurveTo(c1x, c1y, c2x, c2y, x2, y2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+// Smooth curve through every [x, y] point (Catmull-Rom). closed = true loops back.
+function spline(list, color, lineWidth, closed) {
+  if (!list || list.length < 2) return;
+  if (isStyle(color)) closed = color.closed;
+  var n = list.length;
+  function at(i) {
+    if (closed) return list[((i % n) + n) % n];
+    return list[Math.max(0, Math.min(n - 1, i))];
+  }
+  ctx.save();
+  useStroke(color, lineWidth);
+  ctx.beginPath();
+  ctx.moveTo(list[0][0], list[0][1]);
+  var last = closed ? n : n - 1;
+  for (var i = 0; i < last; i++) {
+    var p0 = at(i - 1), p1 = at(i), p2 = at(i + 1), p3 = at(i + 2);
+    ctx.bezierCurveTo(
+      p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6,
+      p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6,
+      p2[0], p2[1]
+    );
+  }
+  if (closed) ctx.closePath();
+  ctx.stroke();
+  ctx.restore();
+}
+
+// Pie slice from angle start to end (radians, counterclockwise). fill and stroke work like circle().
+function wedge(x, y, radius, start, end, fill, stroke, lineWidth) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.arc(x, y, Math.abs(radius), start, end, end < start);
+  ctx.closePath();
+  paint(fill, stroke, lineWidth);
+  ctx.restore();
+}
+
+// Like text(), but size is in screen pixels (default 12), so it stays readable at any zoom.
+function label(str, x, y, color, size, align) {
+  if (isStyle(color)) {
+    size = color.size;
+    align = color.align;
+    color = color.color;
+  }
+  var sx = x * cam.zoom + cam.x;
+  var sy = cam.y - y * cam.zoom;
+  ctx.save();
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  if (color) ctx.fillStyle = color;
+  ctx.font = (size == null ? 12 : size) + 'px ui-sans-serif, system-ui, sans-serif';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(String(str), sx, sy);
+  ctx.restore();
+}
+
+// image(src, x, y, w?, h?): a picture with its bottom-left corner at (x, y). Without w and h
+// it is one world unit per image pixel; with only w the aspect ratio is kept. The image
+// loads in the background and the sketch redraws when it arrives.
+var images = Object.create(null);
+
+function image(src, x, y, w, h) {
+  src = String(src);
+  var im = images[src];
+  if (!im) {
+    im = images[src] = { el: new Image(), ready: false };
+    im.el.onload = function () {
+      im.ready = true;
+      dirty = true;
+    };
+    im.el.onerror = function () {
+      emitLog('warn', ['image: could not load ' + src]);
+    };
+    im.el.src = src;
+  }
+  if (!im.ready) return false;
+  var iw = im.el.naturalWidth;
+  var ih = im.el.naturalHeight;
+  if (w == null) {
+    w = iw;
+    h = ih;
+  } else if (h == null) {
+    h = (w * ih) / iw;
+  }
+  ctx.save();
+  ctx.translate(x, y + h);
+  ctx.scale(1, -1);
+  ctx.drawImage(im.el, 0, 0, w, h);
+  ctx.restore();
+  return true;
+}
+
+// transform(fn, { x, y, rotate, scale }): runs fn with the world moved, rotated (radians)
+// and scaled (a number or [sx, sy]), then puts everything back.
+function transform(f, o) {
+  o = o || {};
+  ctx.save();
+  try {
+    ctx.translate(o.x || 0, o.y || 0);
+    if (o.rotate) ctx.rotate(o.rotate);
+    if (o.scale != null) {
+      if (Array.isArray(o.scale)) ctx.scale(o.scale[0], o.scale[1]);
+      else ctx.scale(o.scale, o.scale);
+    }
+    return f();
+  } finally {
+    ctx.restore();
+  }
+}
+
+// Vector math on [x, y] arrays.
+function add(a, b) { return [a[0] + b[0], a[1] + b[1]]; }
+function sub(a, b) { return [a[0] - b[0], a[1] - b[1]]; }
+function scale(v, k) { return [v[0] * k, v[1] * k]; }
+function dot(a, b) { return a[0] * b[0] + a[1] * b[1]; }
+function len(v) { return Math.sqrt(v[0] * v[0] + v[1] * v[1]); }
+// dist(a, b) for two points, or dist(x1, y1, x2, y2).
+function dist(a, b, c, d) {
+  if (typeof a === 'number') return Math.sqrt((c - a) * (c - a) + (d - b) * (d - b));
+  return len(sub(b, a));
+}
+function norm(v) {
+  var l = len(v);
+  return l > 0 ? [v[0] / l, v[1] / l] : [0, 0];
+}
+// v rotated by angle radians counterclockwise, around the point around (default the origin).
+function rot(v, a, around) {
+  var ox = around ? around[0] : 0;
+  var oy = around ? around[1] : 0;
+  var x = v[0] - ox;
+  var y = v[1] - oy;
+  var c = Math.cos(a);
+  var s = Math.sin(a);
+  return [ox + x * c - y * s, oy + x * s + y * c];
+}
+function angle(v) { return Math.atan2(v[1], v[0]); }
+function polar(r, theta) { return [r * Math.cos(theta), r * Math.sin(theta)]; }
+
+// Where segment a1-a2 crosses segment b1-b2, as [x, y], or null if they do not cross.
+function intersect(a1, a2, b1, b2) {
+  var rx = a2[0] - a1[0], ry = a2[1] - a1[1];
+  var sx = b2[0] - b1[0], sy = b2[1] - b1[1];
+  var d = rx * sy - ry * sx;
+  if (d === 0) return null;
+  var qx = b1[0] - a1[0], qy = b1[1] - a1[1];
+  var t = (qx * sy - qy * sx) / d;
+  var u = (qx * ry - qy * rx) / d;
+  if (t < 0 || t > 1 || u < 0 || u > 1) return null;
+  return [a1[0] + t * rx, a1[1] + t * ry];
+}
+
+// Numbers.
+function clamp(x, lo, hi) {
+  lo = lo == null ? 0 : lo;
+  hi = hi == null ? 1 : hi;
+  return x < lo ? lo : x > hi ? hi : x;
+}
+
+// x rescaled from a1..b1 to a2..b2 (default 0..1). Not clamped.
+function map(x, a1, b1, a2, b2) {
+  if (a2 == null) a2 = 0;
+  if (b2 == null) b2 = 1;
+  return b1 === a1 ? a2 : a2 + ((x - a1) / (b1 - a1)) * (b2 - a2);
+}
+
+// 0 below a, 1 above b, and a smooth S-curve in between.
+function smoothstep(a, b, x) {
+  var t = clamp(b === a ? (x < a ? 0 : 1) : (x - a) / (b - a), 0, 1);
+  return t * t * (3 - 2 * t);
+}
+
+// Easing curves for t in 0..1 (clamped): 'linear', 'in', 'out', 'inOut' (default, cubic),
+// 'sine', 'back', 'elastic' and 'bounce'.
+function ease(t, kind) {
+  t = clamp(t, 0, 1);
+  switch (kind == null ? 'inOut' : kind) {
+    case 'linear': return t;
+    case 'in': return t * t * t;
+    case 'out': return 1 - Math.pow(1 - t, 3);
+    case 'inOut': return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    case 'sine': return (1 - Math.cos(Math.PI * t)) / 2;
+    case 'back': {
+      var c = 1.70158;
+      return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2);
+    }
+    case 'elastic':
+      if (t === 0 || t === 1) return t;
+      return Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * ((2 * Math.PI) / 3)) + 1;
+    case 'bounce': {
+      var n = 7.5625, d = 2.75;
+      if (t < 1 / d) return n * t * t;
+      if (t < 2 / d) return n * (t -= 1.5 / d) * t + 0.75;
+      if (t < 2.5 / d) return n * (t -= 2.25 / d) * t + 0.9375;
+      return n * (t -= 2.625 / d) * t + 0.984375;
+    }
+  }
+  throw new Error("ease: unknown kind '" + kind + "' (use linear, in, out, inOut, sine, back, elastic or bounce)");
+}
+
+// Seeded Perlin noise in 0..1 for 1, 2 or 3 coordinates. Smooth over about one unit, so
+// scale world coordinates down: noise(x / 50, y / 50). Follows seed().
+var noisePerm = null;
+var noisePermSeed = null;
+
+function buildNoise() {
+  var p = [];
+  var i;
+  for (i = 0; i < 256; i++) p[i] = i;
+  var s = (currentSeed ^ 0x9e3779b9) >>> 0;
+  for (i = 255; i > 0; i--) {
+    s = (s + 0x6d2b79f5) >>> 0;
+    var t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    var j = Math.floor((((t ^ (t >>> 14)) >>> 0) / 4294967296) * (i + 1));
+    var tmp = p[i];
+    p[i] = p[j];
+    p[j] = tmp;
+  }
+  noisePerm = new Uint8Array(512);
+  for (i = 0; i < 512; i++) noisePerm[i] = p[i & 255];
+  noisePermSeed = currentSeed;
+}
+
+function nfade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
+function nmix(t, a, b) { return a + t * (b - a); }
+function ngrad(h, x, y, z) {
+  h &= 15;
+  var u = h < 8 ? x : y;
+  var v = h < 4 ? y : h === 12 || h === 14 ? x : z;
+  return ((h & 1) ? -u : u) + ((h & 2) ? -v : v);
+}
+
+function noise(x, y, z) {
+  if (noisePermSeed !== currentSeed) buildNoise();
+  x = Number(x) || 0;
+  y = Number(y) || 0;
+  z = Number(z) || 0;
+  var X = Math.floor(x), Y = Math.floor(y), Z = Math.floor(z);
+  x -= X; y -= Y; z -= Z;
+  X &= 255; Y &= 255; Z &= 255;
+  var u = nfade(x), v = nfade(y), w = nfade(z);
+  var P = noisePerm;
+  var A = P[X] + Y, AA = P[A] + Z, AB = P[A + 1] + Z;
+  var B = P[X + 1] + Y, BA = P[B] + Z, BB = P[B + 1] + Z;
+  var r = nmix(w,
+    nmix(v,
+      nmix(u, ngrad(P[AA], x, y, z), ngrad(P[BA], x - 1, y, z)),
+      nmix(u, ngrad(P[AB], x, y - 1, z), ngrad(P[BB], x - 1, y - 1, z))),
+    nmix(v,
+      nmix(u, ngrad(P[AA + 1], x, y, z - 1), ngrad(P[BA + 1], x - 1, y, z - 1)),
+      nmix(u, ngrad(P[AB + 1], x, y - 1, z - 1), ngrad(P[BB + 1], x - 1, y - 1, z - 1))));
+  return clamp(0.5 + r * 0.5, 0, 1);
+}
+
+// Colors.
+function rgbaString(r, g, b, a) {
+  return 'rgba(' + Math.round(r) + ', ' + Math.round(g) + ', ' + Math.round(b) + ', ' + Number(a.toFixed(3)) + ')';
+}
+
+// The color c1 mixed t of the way (0..1) toward c2.
+function mix(c1, c2, t) {
+  var a = cssColorBytes(String(c1));
+  var b = cssColorBytes(String(c2));
+  t = clamp(t == null ? 0.5 : t, 0, 1);
+  return rgbaString(
+    a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t,
+    (a[3] + (b[3] - a[3]) * t) / 255
+  );
+}
+
+// The color with its opacity multiplied by a (0..1).
+function alpha(color, a) {
+  var c = cssColorBytes(String(color));
+  return rgbaString(c[0], c[1], c[2], (c[3] / 255) * clamp(a, 0, 1));
+}
+
+// The color at t (0..1, clamped) of a built-in ramp, or of a ramp function.
+function ramp(name, t) {
+  return rampFn(name)(clamp(t, 0, 1));
+}
+
+// Pausing animation: time stands still and animate is not called until unpaused, except for
+// redraws when the view moves and single frames from step().
+var paused = false;
+var stepOnce = false;
+var pausedAt = 0;
+
+// pause() toggles, pause(true) / pause(false) sets. Returns whether animation is paused.
+function pause(on) {
+  var next = on == null ? !paused : !!on;
+  if (next !== paused) {
+    var now = performance.now();
+    paused = next;
+    if (paused) {
+      pausedAt = now;
+    } else {
+      animStart += now - pausedAt;
+      animLast += now - pausedAt;
+    }
+  }
+  return paused;
+}
+
+// While paused, advances the animation by one 1/60 s frame.
+function step() {
+  if (!paused) return;
+  pausedAt += 1000 / 60;
+  stepOnce = true;
+}
+
+// Screen-space legend and color bar, drawn under the hud in the top-left corner.
+var legends = [];
+var colorbars = [];
+
+// legend(entries, title?): entries are [[label, color], ...] or { label: color }.
+function legend(entries, title) {
+  var rows = [];
+  if (Array.isArray(entries)) {
+    for (var i = 0; i < entries.length; i++) rows.push([String(entries[i][0]), entries[i][1]]);
+  } else if (entries) {
+    for (var k in entries) rows.push([k, entries[k]]);
+  }
+  legends.push({ title: title == null ? null : String(title), rows: rows });
+}
+
+// colorbar(ramp?, min?, max?, title?): a ramp as a bar with its value range.
+function colorbar(r, min, max, title) {
+  colorbars.push({
+    fn: rampFn(r),
+    min: min == null ? 0 : min,
+    max: max == null ? 1 : max,
+    title: title == null ? null : String(title)
+  });
+}
+
+// slider2d(name, min?, max?, value?): an x/y pad in the control panel. Returns [x, y], each
+// from min to max (default -1..1). value is the initial [x, y] (default the middle).
+var PAD_H = 100;
+var PAD_ROW = 18 + PAD_H + 10;
+
+function slider2d(name, min, max, value) {
+  name = String(name);
+  min = min == null ? -1 : min;
+  max = max == null ? 1 : max;
+  var s = sliderMap[name];
+  if (s && s.kind !== 'pad') return [min, min];
+  if (!s) {
+    var mid = (min + max) / 2;
+    var vx = value ? value[0] : mid;
+    var vy = value ? value[1] : mid;
+    if (name + ':x' in savedSliders) vx = savedSliders[name + ':x'];
+    if (name + ':y' in savedSliders) vy = savedSliders[name + ':y'];
+    s = sliderMap[name] = { kind: 'pad', name: name, vx: vx, vy: vy, value: 0 };
+    sliders.push(s);
+  }
+  s.min = min;
+  s.max = max;
+  var lo = Math.min(min, max);
+  var hi = Math.max(min, max);
+  s.vx = clamp(Number(s.vx) || 0, lo, hi);
+  s.vy = clamp(Number(s.vy) || 0, lo, hi);
+  return [s.vx, s.vy];
+}
+
+// swatch(name, value?): a color picker showing palette(0) to palette(15). Returns the chosen color.
+// value is the initial palette index or palette color (default 0).
+var SWATCH_ROW = 18 + 2 * 16 + 8;
+
+function swatch(name, value) {
+  name = String(name);
+  var s = sliderMap[name];
+  if (s && s.kind !== 'swatch') return palette(0);
+  if (!s) {
+    var start = typeof value === 'number' ? value : Math.max(0, PALETTE.indexOf(value));
+    if (name in savedSliders) start = savedSliders[name];
+    s = sliderMap[name] = { kind: 'swatch', name: name, value: 0 };
+    sliders.push(s);
+    var n = PALETTE.length;
+    s.value = (((Math.floor(start) || 0) % n) + n) % n;
+  }
+  return palette(s.value);
+}
+
+// textBox(str, x, y, color?, size?, align?): text in screen pixels (default 12) on a dark
+// backdrop, split into lines at newlines. x, y is the box's top-left corner (top center or
+// top right with align 'center' or 'right'). As an object: { color, size, align, background }.
+function textBox(str, x, y, color, size, align) {
+  var background = 'rgba(21, 23, 30, 0.88)';
+  if (isStyle(color)) {
+    size = color.size;
+    align = color.align;
+    if (color.background) background = color.background;
+    color = color.color;
+  }
+  size = size == null ? 12 : size;
+  var lines = String(str).split('\\n');
+  var pad = 6;
+  var lh = Math.round(size * 1.3);
+  ctx.save();
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.font = size + 'px ui-sans-serif, system-ui, sans-serif';
+  var w = 0;
+  for (var i = 0; i < lines.length; i++) w = Math.max(w, ctx.measureText(lines[i]).width);
+  var bw = w + 2 * pad;
+  var bh = lines.length * lh + 2 * pad - (lh - size);
+  var sx = x * cam.zoom + cam.x;
+  var sy = cam.y - y * cam.zoom;
+  if (align === 'center') sx -= bw / 2;
+  else if (align === 'right') sx -= bw;
+  ctx.fillStyle = background;
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(sx, sy, bw, bh, 4);
+  else ctx.rect(sx, sy, bw, bh);
+  ctx.fill();
+  ctx.fillStyle = color || INK;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  for (i = 0; i < lines.length; i++) ctx.fillText(lines[i], sx + pad, sy + pad + i * lh);
+  ctx.restore();
+}
+
+// dims(x1, y1, x2, y2, text?, color?, offset?): a dimension line between two points, drawn
+// offset screen pixels (default 16, negative for the other side) away from them, with
+// extension lines, arrowheads and a label. text defaults to the distance.
+function dims(x1, y1, x2, y2, text, color, offset) {
+  if (isStyle(text)) {
+    color = text.color;
+    offset = text.offset;
+    text = text.text;
+  }
+  var dx = x2 - x1;
+  var dy = y2 - y1;
+  var l = Math.sqrt(dx * dx + dy * dy);
+  if (!(l > 0)) return;
+  color = color || 'rgba(255, 255, 255, 0.8)';
+  var off = px(offset == null ? 16 : offset);
+  var nx = -dy / l;
+  var ny = dx / l;
+  var ax = x1 + nx * off, ay = y1 + ny * off;
+  var bx = x2 + nx * off, by = y2 + ny * off;
+  var gap = px(3) * (off < 0 ? -1 : 1);
+  var over = px(4) * (off < 0 ? -1 : 1);
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = px(1);
+  ctx.beginPath();
+  ctx.moveTo(x1 + nx * gap, y1 + ny * gap);
+  ctx.lineTo(ax + nx * over, ay + ny * over);
+  ctx.moveTo(x2 + nx * gap, y2 + ny * gap);
+  ctx.lineTo(bx + nx * over, by + ny * over);
+  ctx.stroke();
+  ctx.restore();
+  arrow((ax + bx) / 2, (ay + by) / 2, ax, ay, color, px(1), 7);
+  arrow((ax + bx) / 2, (ay + by) / 2, bx, by, color, px(1), 7);
+  var str = text == null ? fmtNumber(l) : String(text);
+  var lx = (ax + bx) / 2 + nx * px(10) * (off < 0 ? -1 : 1);
+  var ly = (ay + by) / 2 + ny * px(10) * (off < 0 ? -1 : 1);
+  label(str, lx, ly, color, 11, 'center');
+}
+
+// grid2d(cols, rows, fn): calls fn(col, row, i) for every cell, row by row from the bottom,
+// and returns the results as a list (i = row * cols + col).
+function grid2d(cols, rows, f) {
+  var out = [];
+  for (var r = 0; r < rows; r++) {
+    for (var c = 0; c < cols; c++) out.push(f(c, r, r * cols + c));
+  }
+  return out;
+}
+
+// screenshot(name?): saves the canvas as a PNG once the current frame is drawn, without
+// the controls and hud, with the Vexel logo in the corner. name is the file name
+// (default 'vexel-sketch').
+var pendingShot = null;
+
+function screenshot(name) {
+  pendingShot = String(name == null ? 'vexel-sketch' : name).replace(/[^a-zA-Z0-9 _.-]+/g, '_');
+  if (!/[.]png$/i.test(pendingShot)) pendingShot += '.png';
+}
+
+// The sunflower logo: 21 dots on the golden angle, every fifth one in the accent color.
+function drawLogo(c, cx, cy, size) {
+  var golden = Math.PI * (3 - Math.sqrt(5));
+  var s = size / 128;
+  for (var i = 0; i < 21; i++) {
+    var k = Math.sqrt((i + 0.5) / 21);
+    var a = i * golden - Math.PI / 2;
+    c.fillStyle = i % 5 === 3 ? '#ff5c4d' : '#f5b83d';
+    c.beginPath();
+    c.arc(cx + 49 * k * s * Math.cos(a), cy + 49 * k * s * Math.sin(a), (5 + 4 * k) * s, 0, Math.PI * 2);
+    c.fill();
+  }
+}
+
+// The canvas as a PNG on the app background, with the Vexel logo and name in the corner.
+function brandedPng() {
+  var out = document.createElement('canvas');
+  out.width = canvas.width;
+  out.height = canvas.height;
+  var c = out.getContext('2d');
+  c.fillStyle = '#1b1d25';
+  c.fillRect(0, 0, out.width, out.height);
+  c.drawImage(canvas, 0, 0);
+  c.scale(dpr, dpr);
+  var w = out.width / dpr;
+  var h = out.height / dpr;
+  c.font = '600 11px system-ui, -apple-system, sans-serif';
+  var bw = 5 + 14 + 5 + c.measureText('vexel').width + 6;
+  var bh = 22;
+  var bx = w - bw - 4;
+  var by = h - bh - 4;
+  c.fillStyle = 'rgba(21, 23, 30, 0.8)';
+  c.beginPath();
+  if (c.roundRect) c.roundRect(bx, by, bw, bh, 5);
+  else c.rect(bx, by, bw, bh);
+  c.fill();
+  drawLogo(c, bx + 5 + 7, by + bh / 2, 14);
+  c.fillStyle = '#d7dae0';
+  c.textBaseline = 'middle';
+  c.fillText('vexel', bx + 5 + 14 + 5, by + bh / 2 + 0.5);
+  return out.toDataURL('image/png');
+}
+
+function takeScreenshot() {
+  if (!pendingShot) return;
+  var name = pendingShot;
+  pendingShot = null;
+  var url = brandedPng();
+  if (standalone) {
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  } else {
+    post({ source: 'vexel', type: 'screenshot', name: name, url: url });
+  }
+}
+
+// number(name, value?, step?, min?, max?): a number field in the control panel. Click the
+// arrows to step it, or drag the number left and right to scrub. Returns the value.
+var NUMBER_ROW = 44;
+
+function number(name, value, step, min, max) {
+  name = String(name);
+  var s = sliderMap[name];
+  if (s && s.kind !== 'number') return Number(value) || 0;
+  if (!s) {
+    s = sliderMap[name] = { kind: 'number', name: name, value: 0 };
+    sliders.push(s);
+    s.value = name in savedSliders ? savedSliders[name] : Number(value) || 0;
+  }
+  s.step = step > 0 ? step : 1;
+  s.min = min == null ? -Infinity : min;
+  s.max = max == null ? Infinity : max;
+  s.value = Number(clamp(s.value, s.min, s.max).toPrecision(12));
+  return s.value;
 }
 
 function report(err) {
@@ -1654,7 +2454,12 @@ var scopeNames = [
   'range', 'linspace', 'bounds', 'normalize', 'lerp',
   'plotParam', 'ellipse', 'arc', 'poly',
   'seed', 'random', 'gauss', 'once',
-  'button', 'every', 'drag', 'lockView'
+  'button', 'every', 'drag', 'lockView',
+  'arrow', 'bezier', 'spline', 'wedge', 'label', 'image', 'transform',
+  'add', 'sub', 'scale', 'dot', 'len', 'dist', 'norm', 'rot', 'angle', 'polar', 'intersect',
+  'clamp', 'map', 'smoothstep', 'ease', 'noise',
+  'mix', 'alpha', 'ramp', 'legend', 'colorbar', 'pause', 'step', 'slider2d', 'swatch',
+  'textBox', 'dims', 'grid2d', 'screenshot', 'number'
 ];
 var scopeValues = [
   canvas, ctx, view, mouse, frame, animate,
@@ -1667,7 +2472,12 @@ var scopeValues = [
   range, linspace, bounds, normalize, lerp,
   plotParam, ellipse, arc, poly,
   seed, random, gauss, once,
-  button, every, drag, lockView
+  button, every, drag, lockView,
+  arrow, bezier, spline, wedge, label, image, transform,
+  add, sub, scale, dot, len, dist, norm, rot, angle, polar, intersect,
+  clamp, map, smoothstep, ease, noise,
+  mix, alpha, ramp, legend, colorbar, pause, step, slider2d, swatch,
+  textBox, dims, grid2d, screenshot, number
 ];
 Object.getOwnPropertyNames(Math).forEach(function (name) {
   // Helpers win over Math members of the same name (log prints; use Math.log for ln, random is seeded; use Math.random for unseeded).
@@ -1694,6 +2504,7 @@ function execute() {
     latchClicks();
     resetStyle();
     sketch.apply(null, scopeValues);
+    takeScreenshot();
     drawOverlays();
     return true;
   } catch (err) {
@@ -1716,11 +2527,14 @@ function tick(now) {
   }
 
   if (fn) {
-    var due = animFirst || moved || !animInterval || now - animLast >= animInterval * 1000;
+    var clock = paused ? pausedAt : now;
+    var due = animFirst || moved || stepOnce ||
+      (!paused && (!animInterval || now - animLast >= animInterval * 1000));
     if (!due) return;
     animFirst = false;
-    var t = (now - animStart) / 1000;
-    var dt = (now - animLast) / 1000;
+    stepOnce = false;
+    var t = (clock - animStart) / 1000;
+    var dt = (clock - animLast) / 1000;
     frame.time = t;
     frame.dt = dt;
     hoverTests.length = 0;
@@ -1729,12 +2543,13 @@ function tick(now) {
     latchClicks();
     try {
       fn(t, dt);
+      takeScreenshot();
       drawOverlays();
     } catch (err) {
       report(err);
     }
     frame.n++;
-    animLast = now;
+    animLast = clock;
   } else if (moved) {
     // Static sketch: redraw for the new view.
     frame.n++;
@@ -1762,6 +2577,10 @@ window.addEventListener('message', function (e) {
     updateSliders();
   } else if (d.type === 'key') {
     setKey(d.key, d.code, !!d.down);
+  } else if (d.type === 'screenshot') {
+    // The app's screenshot button: redraw once and save that frame, without the controls.
+    screenshot(d.name);
+    dirty = true;
   } else if (d.type === 'keyreset') {
     clearKeys();
   } else if (d.type === 'sliders') {
@@ -2025,8 +2844,8 @@ export function buildPreviewDoc(code: string, options: PreviewDocOptions = {}): 
   #err { display: none; position: fixed; left: 0; right: 0; bottom: 0; margin: 0; padding: 8px 12px;
     color: #ffb4b4; background: #3a1d22; font: 12px/1.5 ui-monospace, Menlo, Consolas, monospace;
     white-space: pre-wrap; }
-  #selection { display: none; position: fixed; pointer-events: none; background: rgba(91, 108, 240, 0.15);
-    border: 1px dashed #5b6cf0; border-radius: 2px; }
+  #selection { display: none; position: fixed; pointer-events: none; background: rgba(245, 184, 61, 0.15);
+    border: 1px dashed #f5b83d; border-radius: 2px; }
   #readout { display: none; position: fixed; left: 8px; bottom: 8px; gap: 12px; padding: 3px 8px;
     pointer-events: none; color: #d7dae0; background: rgba(21, 23, 30, 0.8); border: 1px solid #2c303c;
     border-radius: 4px; font: 11px/1.3 ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
