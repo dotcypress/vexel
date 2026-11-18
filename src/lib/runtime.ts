@@ -3,7 +3,6 @@ import faviconSvg from './assets/favicon.svg?raw';
 
 export const PROJECT_URL = 'https://github.com/dotcypress/vexel';
 
-// Zoom limits in screen pixels per world unit, shared by the app and exported pages.
 export const MIN_ZOOM = 0.0001;
 export const MAX_ZOOM = 1000000;
 
@@ -26,15 +25,11 @@ animate((t, dt) => {
   }
 })`;
 
-// Runs inside the sandboxed iframe. Kept as plain ES5-style JS in a template string.
-// Must not contain backticks or dollar-brace sequences.
 const RUNTIME = `
 var canvas = document.getElementById('c');
 var ctx = canvas.getContext('2d');
 var dpr = window.devicePixelRatio || 1;
 
-// Camera in CSS pixels: screen x = world x * zoom + x, screen y = y - world y * zoom
-// (Y points up). Pushed by the host.
 var cam = { x: 0, y: 0, zoom: 1 };
 var MIN_ZOOM = ${MIN_ZOOM};
 var MAX_ZOOM = ${MAX_ZOOM};
@@ -44,20 +39,18 @@ var view = {
   width: 0, height: 0
 };
 var mouse = { x: 0, y: 0, down: false, clicked: false };
-// n: index of the current frame, time/dt: seconds, fps: smoothed frames per second.
 var frame = { n: 0, time: 0, dt: 0, fps: 0 };
 
-var fn = null;          // animate callback, if the sketch registered one
-var halted = false;     // set after an error until the next run
+var fn = null;
+var halted = false;
 var started = false;
-var dirty = true;       // camera or size changed since the last frame
+var dirty = true;
 var animStart = 0;
-var animLast = 0;       // time of the last animate callback
-var animInterval = 0;   // seconds between callbacks, 0 = every frame
-var animFirst = true;   // the first callback runs right away
+var animLast = 0;
+var animInterval = 0;
+var animFirst = true;
 var standalone = typeof STANDALONE !== 'undefined';
 
-// Talks to the host app. Exported files have no host, so this is a no-op there.
 function post(message) {
   if (!standalone) parent.postMessage(message, '*');
 }
@@ -80,14 +73,10 @@ function resizeCanvas() {
   dpr = window.devicePixelRatio || 1;
   canvas.width = Math.max(1, Math.round(window.innerWidth * dpr));
   canvas.height = Math.max(1, Math.round(window.innerHeight * dpr));
-  // Resizing wipes the context, styles included.
   resetStyle();
   dirty = true;
 }
 
-// Every helper falls back to the current ctx styles. They start as light ink and a
-// 1 screen pixel line width, set at the start of every run. The line width keeps
-// following the zoom until the sketch sets its own.
 var INK = '#e6e8f0';
 var defaultLineWidth = 1;
 
@@ -105,7 +94,6 @@ function followZoom() {
   }
 }
 
-// A plain object in place of the style arguments: circle(0, 0, 9, { stroke: 'white' }).
 function isStyle(v) {
   return (
     v != null && typeof v === 'object' && !Array.isArray(v) &&
@@ -113,14 +101,12 @@ function isStyle(v) {
   );
 }
 
-// { dash: [on, off, ...] } in screen pixels, for any stroked helper's style object.
 function applyDash(d) {
   if (Array.isArray(d)) {
     ctx.setLineDash(d.map(function (v) { return v / cam.zoom; }));
   }
 }
 
-// Applies a line color and width, either positional or as { color, width, dash }.
 function useStroke(color, lineWidth) {
   if (isStyle(color)) {
     applyDash(color.dash);
@@ -133,13 +119,10 @@ function useStroke(color, lineWidth) {
 
 function applyCamera() {
   updateView();
-  // Y points up: world y is negated on its way to the screen.
   ctx.setTransform(dpr * cam.zoom, 0, 0, -dpr * cam.zoom, dpr * cam.x, dpr * cam.y);
   followZoom();
 }
 
-// Drawing helpers. Optional style arguments are applied temporarily so they
-// never leak into the user's ctx state.
 function clear(color) {
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -152,7 +135,6 @@ function clear(color) {
   ctx.restore();
 }
 
-// point(x, y, color?, size?). The older point(x, y, size, color) order still works.
 function point(x, y, color, size) {
   if (isStyle(color)) {
     size = color.size;
@@ -180,7 +162,6 @@ function line(x1, y1, x2, y2, color, lineWidth) {
   ctx.restore();
 }
 
-// points(points, color?, size?). The older points(points, size, color) order still works.
 function points(list, color, size) {
   if (isStyle(color)) {
     size = color.size;
@@ -208,8 +189,6 @@ function polyline(list, color, lineWidth, closed) {
   ctx.restore();
 }
 
-// Fills and/or strokes the current path. fill defaults to on, stroke to off.
-// As an object, { fill } fills and { stroke } outlines; with neither it fills.
 function paint(fill, stroke, lineWidth) {
   if (isStyle(fill)) {
     var o = fill;
@@ -246,7 +225,6 @@ function ellipse(x, y, rx, ry, fill, stroke, lineWidth, rotation) {
   ctx.restore();
 }
 
-// Stroked arc of a circle, from angle start to end in radians, counterclockwise.
 function arc(x, y, radius, start, end, color, lineWidth) {
   ctx.save();
   useStroke(color, lineWidth);
@@ -256,7 +234,6 @@ function arc(x, y, radius, start, end, color, lineWidth) {
   ctx.restore();
 }
 
-// Closed polygon through [[x, y], ...]. fill and stroke work like circle().
 function poly(list, fill, stroke, lineWidth) {
   if (list.length < 2) return;
   ctx.save();
@@ -276,19 +253,14 @@ function rect(x, y, w, h, fill, stroke, lineWidth) {
   ctx.restore();
 }
 
-// Color helpers: they return CSS color strings usable anywhere a color is accepted.
-// rgb: r, g, b in 0..255, a in 0..1.
 function rgb(r, g, b, a) {
   return 'rgba(' + Math.round(r) + ', ' + Math.round(g) + ', ' + Math.round(b) + ', ' + (a == null ? 1 : a) + ')';
 }
 
-// hsl: h in degrees, s and l in 0..100, a in 0..1.
 function hsl(h, s, l, a) {
   return 'hsla(' + h + ', ' + s + '%, ' + l + '%, ' + (a == null ? 1 : a) + ')';
 }
 
-// Sunflower 16: brand gold first, then colors that each differ strongly from the one
-// before. The first 8 stay distinct for red-green color blindness (deuteranopia).
 var PALETTE = [
   '#f5b83d', '#509fe4', '#ff6450', '#00ba80',
   '#cb93ff', '#bae98a', '#ff93c6', '#41b4bc',
@@ -296,7 +268,6 @@ var PALETTE = [
   '#d9c08c', '#9fb4ff', '#e5484d', '#c9ccd6'
 ];
 
-// The i-th color of a built-in palette. Wraps around, so any integer works.
 function palette(i) {
   var n = PALETTE.length;
   return PALETTE[(((Math.floor(i) || 0) % n) + n) % n];
@@ -307,8 +278,6 @@ function isMultiple(v, step) {
   return Math.abs(q - Math.round(q)) < 1e-9;
 }
 
-// Strokes grid lines at every multiple of step across the visible area,
-// leaving out multiples of skip (when skip > 0).
 function gridLines(step, skip) {
   var i, v;
   var last = Math.floor(view.right / step);
@@ -329,10 +298,6 @@ function gridLines(step, skip) {
   ctx.stroke();
 }
 
-// Grid with minor lines every step world units (default 10) and major lines every
-// major world units (default 5 * step; 0 or false for none). Minor lines are drawn at
-// half the opacity of major ones. Each kind is skipped on its own when its lines
-// would be closer than a few screen pixels.
 function grid(step, color, major) {
   step = step > 0 ? step : 10;
   var majorStep = major === false || major === 0 ? 0 : major > 0 ? major : step * 5;
@@ -352,7 +317,6 @@ function grid(step, color, major) {
   ctx.restore();
 }
 
-// Smallest 1/2/5 * 10^n step that keeps labels at least minPx screen pixels apart.
 function tickStep(minPx) {
   for (var p = 1e-6; p < 1e15; p *= 10) {
     var k = [1, 2, 5];
@@ -363,10 +327,6 @@ function tickStep(minPx) {
   return 1;
 }
 
-// X and Y axes through the origin, with value labels. Labels stay on screen
-// by sticking to the edge when an axis is off-screen. axes(color?) or
-// axes({ color, xLabel, yLabel, step }): step is the label spacing in world units
-// (doubled until labels fit); xLabel and yLabel name the axes.
 function axes(color) {
   var o = isStyle(color) ? color : {};
   if (isStyle(color)) color = o.color;
@@ -380,7 +340,6 @@ function axes(color) {
   ctx.lineTo(0, view.bottom);
   ctx.stroke();
 
-  // Labels are drawn in screen pixels so they keep a constant size.
   var w = window.innerWidth;
   var h = window.innerHeight;
   var step = tickStep(70);
@@ -423,7 +382,6 @@ function axes(color) {
   ctx.restore();
 }
 
-// Quadratic Bezier from (x1, y1) to (x2, y2), pulled toward the control point (cx, cy).
 function curve(x1, y1, cx, cy, x2, y2, color, lineWidth) {
   ctx.save();
   useStroke(color, lineWidth);
@@ -434,9 +392,6 @@ function curve(x1, y1, cx, cy, x2, y2, color, lineWidth) {
   ctx.restore();
 }
 
-// Vector field: f(x, y) returns [dx, dy] and an arrow starts at every step-th world point
-// (default 20). An arrow is as long as the vector, capped just under step so arrows never
-// overlap. Skipped when the arrows would be too dense to read.
 function field(f, step, color, lineWidth) {
   step = step > 0 ? step : 20;
   if (step * cam.zoom < 8) return;
@@ -479,10 +434,6 @@ function field(f, step, color, lineWidth) {
   ctx.restore();
 }
 
-// Built-in colormaps for heat() and scatter(), as evenly spaced color stops.
-// Sequential: viridis, magma, inferno, plasma, cividis (color-blind safe), turbo, hot, gray.
-// Diverging: coolwarm, with a neutral middle for values on both sides of zero.
-// Brand: vexel, a sunflower: dark center, green, gold petals.
 var RAMPS = Object.create(null);
 RAMPS.viridis = ['#440154', '#3b528b', '#21908d', '#5dc863', '#fde725'];
 RAMPS.magma = ['#000004', '#51127c', '#b73779', '#fc8761', '#fcfdbf'];
@@ -496,7 +447,6 @@ RAMPS.gray = ['#000000', '#ffffff'];
 RAMPS.vexel = ['#1b1f4b', '#22667a', '#5fa86a', '#f5b83d', '#fff3b0'];
 var rampLuts = Object.create(null);
 
-// 256 precomputed CSS colors for a built-in colormap.
 function rampLut(name) {
   if (rampLuts[name]) return rampLuts[name];
   var stops = RAMPS[name];
@@ -523,13 +473,11 @@ function rampLut(name) {
     bytes[n * 4 + 2] = bl;
     bytes[n * 4 + 3] = 255;
   }
-  lut.bytes = bytes;   // the same colors as RGBA bytes, for pixel-by-pixel drawing
+  lut.bytes = bytes;
   rampLuts[name] = lut;
   return lut;
 }
 
-// RGBA bytes of any CSS color string, cached. Used when a ramp function returns colors
-// for pixel-by-pixel drawing.
 var colorBytes = Object.create(null);
 var colorProbe = null;
 
@@ -546,12 +494,6 @@ function cssColorBytes(color) {
   return (colorBytes[color] = colorProbe.getImageData(0, 0, 1, 1).data);
 }
 
-// Colors the whole view by f(x, y), which returns a number from 0 to 1 (clamped).
-// ramp is the name of a built-in colormap ('viridis' by default) or a function t => color.
-// Cells are a few screen pixels wide; the result is opaque, so draw it first.
-// heat(f, ramp?, cell?): cell is the cell size in screen pixels. By default
-// it is chosen so the view holds about 10,000 cells (at least 8 pixels each).
-// A cell of 1 samples f at every screen pixel and draws the result as an image.
 function heat(f, ramp, cell) {
   var lut = null;
   if (typeof ramp !== 'function') lut = rampLut(ramp == null ? 'viridis' : String(ramp));
@@ -578,9 +520,6 @@ function heat(f, ramp, cell) {
   ctx.restore();
 }
 
-// Numbers from a up to, but not including, b in steps of step (default 1), e.g.
-// range(0, 1, 0.25) is [0, 0.25, 0.5, 0.75]. range(n) counts from 0 to n - 1. A step that
-// points away from b gives an empty list, so use a negative step to count down.
 function range(a, b, step) {
   if (b === undefined) {
     b = a;
@@ -591,18 +530,14 @@ function range(a, b, step) {
     throw new Error('range: a, b and step must be finite numbers');
   }
   if (step === 0) throw new Error('range: step must not be 0');
-  // The tiny offset keeps float noise (0.3 / 0.1 is 2.9999999999999996) from adding a value.
   var count = Math.ceil((b - a) / step - 1e-9);
   if (!(count > 0)) return [];
   if (count > 1000000) throw new Error('range: too many values (' + count + ')');
   var out = [];
-  // a + i * step avoids the drift of repeated addition; toPrecision trims 0.30000000000000004.
   for (var i = 0; i < count; i++) out.push(Number((a + i * step).toPrecision(15)));
   return out;
 }
 
-// n evenly spaced numbers from a to b, both included: linspace(0, 1, 5) is
-// [0, 0.25, 0.5, 0.75, 1]. Handy for sampling a curve.
 function linspace(a, b, n) {
   if (!isFinite(a) || !isFinite(b) || !isFinite(n)) {
     throw new Error('linspace: a, b and n must be finite numbers');
@@ -617,9 +552,6 @@ function linspace(a, b, n) {
   return out;
 }
 
-// The rectangle around a list of [x, y] points as [x, y, w, h], with x, y the bottom-left
-// corner, ready for fit(...bounds(points)). Points that are not finite are ignored; an empty
-// list gives [0, 0, 0, 0].
 function bounds(points) {
   var minX = Infinity;
   var minY = Infinity;
@@ -637,8 +569,6 @@ function bounds(points) {
   return [minX, minY, maxX - minX, maxY - minY];
 }
 
-// The list rescaled so its smallest number becomes 0 and its largest 1. A list whose numbers
-// are all equal becomes all 0, and entries that are not finite numbers become NaN.
 function normalize(list) {
   var lo = Infinity;
   var hi = -Infinity;
@@ -658,19 +588,12 @@ function normalize(list) {
   return out;
 }
 
-// The value t of the way from a to b: lerp(10, 20, 0.5) is 15. t is not clamped, so values
-// outside 0..1 extrapolate.
 function lerp(a, b, t) {
   return a + (b - a) * t;
 }
 
-// once(fn, key?): calls fn the first time and returns the cached result
-// after that, across frames and across re-runs from panning or controls. Editing the
-// code reloads the preview, which clears the cache. Without a key, the function's
-// source text is the key.
 var onceCache = Object.create(null);
 
-// The older once(key, fn) order still works.
 function once(fn, key) {
   if (typeof fn !== 'function') {
     var k = fn;
@@ -682,11 +605,9 @@ function once(fn, key) {
   return onceCache[key];
 }
 
-// Seeded random numbers (mulberry32). The generator restarts from the same seed on
-// every run, so re-runs triggered by panning or controls draw the same picture.
 var DEFAULT_SEED = 1;
 var rngState = DEFAULT_SEED;
-var currentSeed = DEFAULT_SEED;   // the last seed, which noise() follows
+var currentSeed = DEFAULT_SEED;
 var spareGauss = null;
 
 function seed(n) {
@@ -703,7 +624,6 @@ function rand01() {
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 }
 
-// random(): 0..1. random(b): 0..b. random(a, b): a..b. random(list): a random item.
 function random(a, b) {
   var r = rand01();
   if (Array.isArray(a)) return a[Math.floor(r * a.length)];
@@ -712,7 +632,6 @@ function random(a, b) {
   return a + (b - a) * r;
 }
 
-// Normally distributed number (Box-Muller), mean 0 and sd 1 by default.
 function gauss(mean, sd) {
   var z;
   if (spareGauss !== null) {
@@ -728,8 +647,6 @@ function gauss(mean, sd) {
   return (mean == null ? 0 : mean) + (sd == null ? 1 : sd) * z;
 }
 
-// Function t (0..1) => color for a ramp argument: a built-in name or your own function.
-// One sample per screen pixel, written straight into an image the size of the view.
 var heatCanvas = null;
 
 function heatPixels(f, ramp, lut, w, h) {
@@ -743,7 +660,6 @@ function heatPixels(f, ramp, lut, w, h) {
   var hctx = heatCanvas.getContext('2d');
   var image = hctx.createImageData(w, h);
   var data = image.data;
-  // A ramp function is sampled at 256 levels once, like the named ramps.
   var bytes = lut ? lut.bytes : new Uint8ClampedArray(256 * 4);
   if (!lut) {
     for (var n = 0; n < 256; n++) {
@@ -782,9 +698,6 @@ function rampFn(ramp) {
   };
 }
 
-// Dots at [x, y, value] triples, colored by value (0..1, clamped) with a ramp as in heat().
-// size is the diameter in world units (default 4). Entries without a value use the ramp's start.
-// scatter(points, ramp?, size?). The older scatter(points, size, ramp) order still works.
 function scatter(list, ramp, size) {
   if (typeof ramp === 'number') {
     var s = ramp;
@@ -807,8 +720,6 @@ function scatter(list, ramp, size) {
   ctx.restore();
 }
 
-// Bar chart: bar i stands on y = 0 in the slot from i * width to (i + 1) * width (width
-// defaults to 10), as tall as its value in world units. color is one color or (i, value) => color.
 function bars(list, width, color) {
   width = width > 0 ? width : 10;
   ctx.save();
@@ -822,9 +733,6 @@ function bars(list, width, color) {
   ctx.restore();
 }
 
-// Histogram of a list of numbers in the given number of bins (default 10) between its
-// smallest and largest value. x is the data value and a bar is as tall as its count, both
-// in world units. Returns the counts.
 function hist(list, bins, color) {
   var data = [];
   for (var i = 0; i < list.length; i++) {
@@ -856,8 +764,6 @@ function hist(list, bins, color) {
   return counts;
 }
 
-// Curve where f(x, y) = level (default 0), found with marching squares on a grid of
-// a few screen pixels. Draws every branch it finds, e.g. contour((x, y) => hypot(x, y) - 50).
 function contour(f, level, color, lineWidth) {
   level = level == null ? 0 : level;
   var w = window.innerWidth;
@@ -886,7 +792,6 @@ function contour(f, level, color, lineWidth) {
   }
   for (j = 0; j < ny; j++) {
     for (i = 0; i < nx; i++) {
-      // Corners: a top-left, b top-right, c bottom-right, d bottom-left.
       var va = vals[j * stride + i];
       var vb = vals[j * stride + i + 1];
       var vd = vals[(j + 1) * stride + i];
@@ -898,7 +803,6 @@ function contour(f, level, color, lineWidth) {
       var y0 = view.top - j * cw;
       var x1 = x0 + cw;
       var y1 = y0 - cw;
-      // Where the curve crosses each edge: top, right, bottom, left.
       var tx = x0 + (va / (va - vb)) * cw;
       var ry = y0 - (vb / (vb - vc)) * cw;
       var bx = x0 + (vd / (vd - vc)) * cw;
@@ -926,12 +830,8 @@ function contour(f, level, color, lineWidth) {
   ctx.restore();
 }
 
-// Positions remembered per trail id.
 var trails = Object.create(null);
 
-// Remembers the last n positions (default 50) under id and draws them as a line that
-// fades out toward the oldest. Call it once per frame, e.g. inside animate.
-// trail(id, x, y, color?, n?). The older trail(id, x, y, n, color) order still works.
 function trail(id, x, y, color, n) {
   var lineWidth;
   if (isStyle(color)) {
@@ -948,7 +848,6 @@ function trail(id, x, y, color, n) {
   var pts = trails[id] || (trails[id] = []);
   if (isFinite(x) && isFinite(y)) {
     var last = pts[pts.length - 1];
-    // Static sketches re-run on camera changes; don't grow the trail for the same point.
     if (!last || last[0] !== x || last[1] !== y) pts.push([x, y]);
   }
   if (pts.length > n) pts.splice(0, pts.length - n);
@@ -967,11 +866,8 @@ function trail(id, x, y, color, n) {
   ctx.restore();
 }
 
-// Hover tests made during the current run of a static sketch, so the sketch can be
-// re-run when the pointer enters or leaves.
 var hoverTests = [];
 
-// True while the pointer is within r world units of (x, y).
 function hover(x, y, r) {
   var inside = Math.sqrt((mouse.x - x) * (mouse.x - x) + (mouse.y - y) * (mouse.y - y)) <= r;
   hoverTests.push({ x: x, y: y, r: r, inside: inside });
@@ -979,7 +875,6 @@ function hover(x, y, r) {
 }
 
 function checkHover() {
-  // Sketches animated every frame read the pointer again on their next frame anyway.
   if (fn && !animInterval) return;
   for (var i = 0; i < hoverTests.length; i++) {
     var t = hoverTests[i];
@@ -991,23 +886,16 @@ function checkHover() {
   }
 }
 
-// n screen pixels expressed in world units (default 1), for zoom-independent line
-// widths and sizes: line(0, 0, 50, 50, 'white', px(2)).
 function px(n) {
   return (n == null ? 1 : n) / cam.zoom;
 }
 
-// Frames the world rectangle with bottom-left corner (x, y), w wide and h tall,
-// with a small margin. It applies once per run and again only when the arguments
-// change, so the user can still pan and zoom afterwards.
 var lastFit = '';
-var pendingFit = null;   // a fit() that ran before the page had any size
+var pendingFit = null;
 function fit(x, y, w, h) {
   if (!isFinite(x) || !isFinite(y) || !isFinite(w) || !isFinite(h) || !(w > 0) || !(h > 0)) return;
   var vw = window.innerWidth;
   var vh = window.innerHeight;
-  // Right after the page loads the frame can still be unmeasured (0 x 0). Framing against that
-  // would zoom way out, so wait for the resize event that reports the real size.
   if (vw < 2 || vh < 2) {
     pendingFit = [x, y, w, h];
     return;
@@ -1021,15 +909,10 @@ function fit(x, y, w, h) {
   cam.x = vw / 2 - (x + w / 2) * zoom;
   cam.y = vh / 2 + (y + h / 2) * zoom;
   applyCamera();
-  // Redraw the whole frame under the new camera on the next tick.
   dirty = true;
   post({ source: 'vexel', type: 'camera', x: cam.x, y: cam.y, zoom: zoom });
 }
 
-// lockView(pan?, zoom?): stops the user from panning and/or zooming the view. Both
-// default to true, so lockView() locks both; lockView(true, false) locks only pan and
-// lockView(false, true) only zoom. fit() still moves the camera. Editing the code
-// clears the lock.
 var viewLock = { pan: false, zoom: false };
 
 function lockView(pan, zoom) {
@@ -1041,8 +924,6 @@ function lockView(pan, zoom) {
   post({ source: 'vexel', type: 'lock', pan: pan, zoom: zoom });
 }
 
-// Text at (x, y), vertically centered. size is in world units (default 14);
-// align is 'left' (default), 'center' or 'right'.
 function text(str, x, y, color, size, align) {
   if (isStyle(color)) {
     size = color.size;
@@ -1054,15 +935,12 @@ function text(str, x, y, color, size, align) {
   ctx.font = (size == null ? 14 : size) + 'px ui-sans-serif, system-ui, sans-serif';
   ctx.textAlign = align || 'left';
   ctx.textBaseline = 'middle';
-  // Undo the camera's y flip locally so the text is not mirrored.
   ctx.translate(x, y);
   ctx.scale(1, -1);
   ctx.fillText(String(str), 0, 0);
   ctx.restore();
 }
 
-// Graph of y = f(x) over the visible x range, or from..to when given.
-// Gaps appear wherever f returns something that is not a finite number.
 function plot(f, color, lineWidth, from, to) {
   if (isStyle(color)) {
     from = color.from;
@@ -1093,8 +971,6 @@ function plot(f, color, lineWidth, from, to) {
   ctx.restore();
 }
 
-// Graph of r = f(theta) for theta from 0 to 2*PI. Gaps appear wherever f
-// returns something that is not a finite number.
 function plotPolar(f, color, lineWidth) {
   var n = 2000;
   ctx.save();
@@ -1122,10 +998,6 @@ function plotPolar(f, color, lineWidth) {
   ctx.restore();
 }
 
-// Parametric curve x = fx(t), y = fy(t) for t from t0 to t1 (default 0 to 2*PI).
-// Gaps appear wherever fx or fy returns something that is not a finite number.
-// plotParam(fx, fy, color?, lineWidth?, from?, to?), like plot. The older
-// plotParam(fx, fy, from, to, color, lineWidth) order still works.
 function plotParam(fx, fy, color, lineWidth, from, to) {
   if (typeof color === 'number') {
     var a = [color, lineWidth, from, to];
@@ -1162,8 +1034,6 @@ function plotParam(fx, fy, color, lineWidth, from, to) {
   ctx.restore();
 }
 
-// Keyboard state. Keys are stored lowercased under both event.key and event.code,
-// so key('a'), key('ArrowLeft') and key('Space') all work.
 var keys = Object.create(null);
 
 function setKey(name, code, down) {
@@ -1175,7 +1045,6 @@ function setKey(name, code, down) {
     if (down) keys[ids[i]] = true;
     else delete keys[ids[i]];
   }
-  // A static sketch re-runs so it can react to the key.
   if (changed) dirty = true;
 }
 
@@ -1184,16 +1053,13 @@ function clearKeys() {
   dirty = true;
 }
 
-// True while the named key is held, e.g. key('ArrowLeft'), key('a'), key('Space').
 function key(name) {
   return keys[String(name).toLowerCase()] === true;
 }
 
-// Screen-space overlays (sliders, toggles and hud) are drawn after the sketch has
-// finished a frame, so they always end up on top.
-var sliders = [];   // controls: sliders, toggles, selects and buttons, in first-use order
+var sliders = [];
 var sliderMap = Object.create(null);
-var savedSliders = Object.create(null);   // values restored by the host after a re-run
+var savedSliders = Object.create(null);
 var activeSlider = null;
 var prevDown = false;
 var hudLines = [];
@@ -1202,7 +1068,7 @@ var SLIDER_ROW = 36;
 var TOGGLE_ROW = 24;
 var SELECT_ROW = 44;
 var BUTTON_ROW = 30;
-var pressedButton = null;   // the button under a held pointer, drawn highlighted
+var pressedButton = null;
 
 function fmtNumber(v) {
   return String(Number(v.toPrecision(4)));
@@ -1215,14 +1081,12 @@ function clampSlider(s, v) {
   return Number(v.toPrecision(12));
 }
 
-// Adds (once) a labeled slider to the top-right panel and returns its current value.
-// The value survives re-runs; min, max and step may change between calls.
 function slider(name, min, max, value, step) {
   name = String(name);
   min = min == null ? 0 : min;
   max = max == null ? 1 : max;
   var s = sliderMap[name];
-  if (s && s.kind !== 'slider') return s.value;   // name already used by a toggle
+  if (s && s.kind !== 'slider') return s.value;
   if (!s) {
     s = sliderMap[name] = { kind: 'slider', name: name, min: min, max: max, step: 0, value: 0 };
     sliders.push(s);
@@ -1235,12 +1099,10 @@ function slider(name, min, max, value, step) {
   return s.value;
 }
 
-// Adds (once) a labeled checkbox to the same panel and returns whether it is on.
-// The state survives re-runs. value is the initial state (default off).
 function toggle(name, value) {
   name = String(name);
   var s = sliderMap[name];
-  if (s && s.kind !== 'toggle') return !!s.value;   // name already used by a slider
+  if (s && s.kind !== 'toggle') return !!s.value;
   if (!s) {
     s = sliderMap[name] = { kind: 'toggle', name: name, value: 0 };
     sliders.push(s);
@@ -1249,16 +1111,13 @@ function toggle(name, value) {
   return !!s.value;
 }
 
-// Adds (once) a labeled chooser to the same panel and returns the chosen option, which
-// can be any value. Click the left half to go back and the right half to go forward.
-// value is the initially chosen option (default: the first). The choice survives re-runs.
 function select(name, options, value) {
   name = String(name);
   if (!Array.isArray(options) || !options.length) {
     throw new Error('select: options must be a non-empty array');
   }
   var s = sliderMap[name];
-  if (s && s.kind !== 'select') return options[0];   // name already used by another control
+  if (s && s.kind !== 'select') return options[0];
   if (!s) {
     s = sliderMap[name] = { kind: 'select', name: name, options: options, value: 0 };
     sliders.push(s);
@@ -1270,12 +1129,10 @@ function select(name, options, value) {
   return options[s.value];
 }
 
-// Adds (once) a push button to the same panel. Returns true for the one frame or re-run
-// after it was clicked, false otherwise.
 function button(name) {
   name = String(name);
   var s = sliderMap[name];
-  if (s && s.kind !== 'button') return false;   // name already used by another control
+  if (s && s.kind !== 'button') return false;
   if (!s) {
     s = sliderMap[name] = { kind: 'button', name: name, value: 0, pending: false, fired: false };
     sliders.push(s);
@@ -1283,13 +1140,9 @@ function button(name) {
   return s.fired;
 }
 
-// drag(id, x, y, r?, color?): a handle the user can drag with the left button. Returns
-// its current [x, y]; x, y is where it starts. The position survives frames, re-runs and
-// code edits (the host keeps it with the slider values). r is the grab radius in screen pixels (default 8).
-// Handles are drawn on top of the sketch, like the controls.
-var DRAG_KEY = '@drag:';            // prefix for handle positions stored with slider values
-var handles = Object.create(null);   // id -> { x, y }, kept across runs
-var handleList = [];                 // handles used by the latest run, in call order
+var DRAG_KEY = '@drag:';
+var handles = Object.create(null);
+var handleList = [];
 var activeHandle = null;
 var hoveredHandle = null;
 var dragOffset = { x: 0, y: 0 };
@@ -1312,7 +1165,6 @@ function drag(id, x, y, r, color) {
   return [h.x, h.y];
 }
 
-// The topmost handle within its radius of a screen point, or null.
 function handleAt(sx, sy) {
   for (var i = handleList.length - 1; i >= 0; i--) {
     var h = handleList[i];
@@ -1323,8 +1175,6 @@ function handleAt(sx, sy) {
   return null;
 }
 
-// Clicks arrive between frames. Each one is handed to exactly one run of the sketch code:
-// the next animate frame, or the re-run a click triggers in a static sketch.
 var pendingClick = false;
 
 function latchClicks() {
@@ -1338,9 +1188,6 @@ function latchClicks() {
   }
 }
 
-// every(seconds, fn?): true once every given number of seconds of animation time, and
-// calls fn when it is. The first time comes one period after the first call. Calls with
-// the same period and function share a timer; pass a different key to separate them.
 var timers = Object.create(null);
 
 function every(seconds, fn, key) {
@@ -1352,19 +1199,17 @@ function every(seconds, fn, key) {
     timers[id] = { next: now + seconds, n: frame.n };
     return false;
   }
-  if (tm.n === frame.n) return tm.fired;   // asked again within the same frame
+  if (tm.n === frame.n) return tm.fired;
   tm.n = frame.n;
   tm.fired = now >= tm.next;
   if (tm.fired) {
     tm.next += seconds;
-    if (tm.next <= now) tm.next = now + seconds;   // skip missed beats instead of bursting
+    if (tm.next <= now) tm.next = now + seconds;
     if (fn) fn();
   }
   return tm.fired;
 }
 
-// Each argument is a line of text; a plain object becomes one "key: value" line per entry.
-// Shown in the top-left corner for the current frame only.
 function hud() {
   for (var i = 0; i < arguments.length; i++) {
     var a = arguments[i];
@@ -1379,7 +1224,6 @@ function hud() {
   }
 }
 
-// Log lines are batched so a log() call on every frame cannot flood the host.
 var logQueue = [];
 var logScheduled = false;
 var LOG_BATCH = 50;
@@ -1418,8 +1262,6 @@ function emitLog(level, args) {
   }
 }
 
-// Prints its arguments to the console panel, separated by spaces. Objects and arrays are
-// shown as JSON. In exported pages it prints to the browser console instead.
 function log() {
   if (standalone) console.log.apply(console, arguments);
   else emitLog('log', arguments);
@@ -1440,7 +1282,6 @@ function sliderRow(i) {
   return { x: window.innerWidth - 12 - SLIDER_W - 10, y: y, h: controlHeight(sliders[i]) };
 }
 
-// Called whenever the pointer changes: starts, drags and ends slider interaction.
 function updateSliders() {
   checkHover();
   var down = mouse.down;
@@ -1501,7 +1342,6 @@ function updateSliders() {
         dragOffset.x = activeHandle.x - mouse.x;
         dragOffset.y = activeHandle.y - mouse.y;
       } else {
-        // A click on the sketch itself, not on a control or a handle.
         pendingClick = true;
       }
       dirty = true;
@@ -1574,7 +1414,6 @@ function updateSliders() {
   }
 }
 
-// Brand colors for the controls: gold, with dark text on top of it.
 var ACCENT = '#f5b83d';
 var ACCENT_LIGHT = '#ffd27a';
 var ON_ACCENT = '#15171e';
@@ -1593,7 +1432,6 @@ function drawOverlays() {
   var i;
   ctx.save();
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  // Neutralize any state the sketch left on ctx.
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';
   ctx.shadowBlur = 0;
@@ -1626,7 +1464,7 @@ function drawOverlays() {
     ctx.fillStyle = '#e6e8f0';
     ctx.textAlign = 'left';
     for (i = 0; i < hudLines.length; i++) {
-      ctx.fillText(hudLines[i], 18, 16 + i * 15);
+      ctx.fillText(hudLines[i], 18, 18 + i * 15);
     }
     leftY += hudLines.length * 15 + 8 + 8;
   }
@@ -1816,8 +1654,6 @@ function drawOverlays() {
   colorbars = [];
 }
 
-// arrow(x1, y1, x2, y2, color?, lineWidth?, head?): a line with a filled head at (x2, y2).
-// head is the head length in screen pixels (default 8), capped at half the arrow.
 function arrow(x1, y1, x2, y2, color, lineWidth, head) {
   if (isStyle(color)) head = color.head;
   var dx = x2 - x1;
@@ -1844,7 +1680,6 @@ function arrow(x1, y1, x2, y2, color, lineWidth, head) {
   ctx.restore();
 }
 
-// Cubic Bezier from (x1, y1) to (x2, y2) with control points (c1x, c1y) and (c2x, c2y).
 function bezier(x1, y1, c1x, c1y, c2x, c2y, x2, y2, color, lineWidth) {
   ctx.save();
   useStroke(color, lineWidth);
@@ -1855,7 +1690,6 @@ function bezier(x1, y1, c1x, c1y, c2x, c2y, x2, y2, color, lineWidth) {
   ctx.restore();
 }
 
-// Smooth curve through every [x, y] point (Catmull-Rom). closed = true loops back.
 function spline(list, color, lineWidth, closed) {
   if (!list || list.length < 2) return;
   if (isStyle(color)) closed = color.closed;
@@ -1882,7 +1716,6 @@ function spline(list, color, lineWidth, closed) {
   ctx.restore();
 }
 
-// Pie slice from angle start to end (radians, counterclockwise). fill and stroke work like circle().
 function wedge(x, y, radius, start, end, fill, stroke, lineWidth) {
   ctx.save();
   ctx.beginPath();
@@ -1893,7 +1726,6 @@ function wedge(x, y, radius, start, end, fill, stroke, lineWidth) {
   ctx.restore();
 }
 
-// Like text(), but size is in screen pixels (default 12), so it stays readable at any zoom.
 function label(str, x, y, color, size, align) {
   if (isStyle(color)) {
     size = color.size;
@@ -1912,9 +1744,6 @@ function label(str, x, y, color, size, align) {
   ctx.restore();
 }
 
-// image(src, x, y, w?, h?): a picture with its bottom-left corner at (x, y). Without w and h
-// it is one world unit per image pixel; with only w the aspect ratio is kept. The image
-// loads in the background and the sketch redraws when it arrives.
 var images = Object.create(null);
 
 function image(src, x, y, w, h) {
@@ -1948,8 +1777,6 @@ function image(src, x, y, w, h) {
   return true;
 }
 
-// transform(fn, { x, y, rotate, scale }): runs fn with the world moved, rotated (radians)
-// and scaled (a number or [sx, sy]), then puts everything back.
 function transform(f, o) {
   o = o || {};
   ctx.save();
@@ -1966,13 +1793,11 @@ function transform(f, o) {
   }
 }
 
-// Vector math on [x, y] arrays.
 function add(a, b) { return [a[0] + b[0], a[1] + b[1]]; }
 function sub(a, b) { return [a[0] - b[0], a[1] - b[1]]; }
 function scale(v, k) { return [v[0] * k, v[1] * k]; }
 function dot(a, b) { return a[0] * b[0] + a[1] * b[1]; }
 function len(v) { return Math.sqrt(v[0] * v[0] + v[1] * v[1]); }
-// dist(a, b) for two points, or dist(x1, y1, x2, y2).
 function dist(a, b, c, d) {
   if (typeof a === 'number') return Math.sqrt((c - a) * (c - a) + (d - b) * (d - b));
   return len(sub(b, a));
@@ -1981,7 +1806,6 @@ function norm(v) {
   var l = len(v);
   return l > 0 ? [v[0] / l, v[1] / l] : [0, 0];
 }
-// v rotated by angle radians counterclockwise, around the point around (default the origin).
 function rot(v, a, around) {
   var ox = around ? around[0] : 0;
   var oy = around ? around[1] : 0;
@@ -1994,7 +1818,6 @@ function rot(v, a, around) {
 function angle(v) { return Math.atan2(v[1], v[0]); }
 function polar(r, theta) { return [r * Math.cos(theta), r * Math.sin(theta)]; }
 
-// Where segment a1-a2 crosses segment b1-b2, as [x, y], or null if they do not cross.
 function intersect(a1, a2, b1, b2) {
   var rx = a2[0] - a1[0], ry = a2[1] - a1[1];
   var sx = b2[0] - b1[0], sy = b2[1] - b1[1];
@@ -2007,28 +1830,23 @@ function intersect(a1, a2, b1, b2) {
   return [a1[0] + t * rx, a1[1] + t * ry];
 }
 
-// Numbers.
 function clamp(x, lo, hi) {
   lo = lo == null ? 0 : lo;
   hi = hi == null ? 1 : hi;
   return x < lo ? lo : x > hi ? hi : x;
 }
 
-// x rescaled from a1..b1 to a2..b2 (default 0..1). Not clamped.
 function map(x, a1, b1, a2, b2) {
   if (a2 == null) a2 = 0;
   if (b2 == null) b2 = 1;
   return b1 === a1 ? a2 : a2 + ((x - a1) / (b1 - a1)) * (b2 - a2);
 }
 
-// 0 below a, 1 above b, and a smooth S-curve in between.
 function smoothstep(a, b, x) {
   var t = clamp(b === a ? (x < a ? 0 : 1) : (x - a) / (b - a), 0, 1);
   return t * t * (3 - 2 * t);
 }
 
-// Easing curves for t in 0..1 (clamped): 'linear', 'in', 'out', 'inOut' (default, cubic),
-// 'sine', 'back', 'elastic' and 'bounce'.
 function ease(t, kind) {
   t = clamp(t, 0, 1);
   switch (kind == null ? 'inOut' : kind) {
@@ -2055,8 +1873,6 @@ function ease(t, kind) {
   throw new Error("ease: unknown kind '" + kind + "' (use linear, in, out, inOut, sine, back, elastic or bounce)");
 }
 
-// Seeded Perlin noise in 0..1 for 1, 2 or 3 coordinates. Smooth over about one unit, so
-// scale world coordinates down: noise(x / 50, y / 50). Follows seed().
 var noisePerm = null;
 var noisePermSeed = null;
 
@@ -2111,12 +1927,10 @@ function noise(x, y, z) {
   return clamp(0.5 + r * 0.5, 0, 1);
 }
 
-// Colors.
 function rgbaString(r, g, b, a) {
   return 'rgba(' + Math.round(r) + ', ' + Math.round(g) + ', ' + Math.round(b) + ', ' + Number(a.toFixed(3)) + ')';
 }
 
-// The color c1 mixed t of the way (0..1) toward c2.
 function mix(c1, c2, t) {
   var a = cssColorBytes(String(c1));
   var b = cssColorBytes(String(c2));
@@ -2127,24 +1941,19 @@ function mix(c1, c2, t) {
   );
 }
 
-// The color with its opacity multiplied by a (0..1).
 function alpha(color, a) {
   var c = cssColorBytes(String(color));
   return rgbaString(c[0], c[1], c[2], (c[3] / 255) * clamp(a, 0, 1));
 }
 
-// The color at t (0..1, clamped) of a built-in ramp, or of a ramp function.
 function ramp(name, t) {
   return rampFn(name)(clamp(t, 0, 1));
 }
 
-// Pausing animation: time stands still and animate is not called until unpaused, except for
-// redraws when the view moves and single frames from step().
 var paused = false;
 var stepOnce = false;
 var pausedAt = 0;
 
-// pause() toggles, pause(true) / pause(false) sets. Returns whether animation is paused.
 function pause(on) {
   var next = on == null ? !paused : !!on;
   if (next !== paused) {
@@ -2160,18 +1969,15 @@ function pause(on) {
   return paused;
 }
 
-// While paused, advances the animation by one 1/60 s frame.
 function step() {
   if (!paused) return;
   pausedAt += 1000 / 60;
   stepOnce = true;
 }
 
-// Screen-space legend and color bar, drawn under the hud in the top-left corner.
 var legends = [];
 var colorbars = [];
 
-// legend(entries, title?): entries are [[label, color], ...] or { label: color }.
 function legend(entries, title) {
   var rows = [];
   if (Array.isArray(entries)) {
@@ -2182,7 +1988,6 @@ function legend(entries, title) {
   legends.push({ title: title == null ? null : String(title), rows: rows });
 }
 
-// colorbar(ramp?, min?, max?, title?): a ramp as a bar with its value range.
 function colorbar(r, min, max, title) {
   colorbars.push({
     fn: rampFn(r),
@@ -2192,8 +1997,6 @@ function colorbar(r, min, max, title) {
   });
 }
 
-// slider2d(name, min?, max?, value?): an x/y pad in the control panel. Returns [x, y], each
-// from min to max (default -1..1). value is the initial [x, y] (default the middle).
 var PAD_H = 100;
 var PAD_ROW = 18 + PAD_H + 10;
 
@@ -2221,8 +2024,6 @@ function slider2d(name, min, max, value) {
   return [s.vx, s.vy];
 }
 
-// swatch(name, value?): a color picker showing palette(0) to palette(15). Returns the chosen color.
-// value is the initial palette index or palette color (default 0).
 var SWATCH_ROW = 18 + 2 * 16 + 8;
 
 function swatch(name, value) {
@@ -2240,9 +2041,6 @@ function swatch(name, value) {
   return palette(s.value);
 }
 
-// textBox(str, x, y, color?, size?, align?): text in screen pixels (default 12) on a dark
-// backdrop, split into lines at newlines. x, y is the box's top-left corner (top center or
-// top right with align 'center' or 'right'). As an object: { color, size, align, background }.
 function textBox(str, x, y, color, size, align) {
   var background = 'rgba(21, 23, 30, 0.88)';
   if (isStyle(color)) {
@@ -2278,9 +2076,6 @@ function textBox(str, x, y, color, size, align) {
   ctx.restore();
 }
 
-// dims(x1, y1, x2, y2, text?, color?, offset?): a dimension line between two points, drawn
-// offset screen pixels (default 16, negative for the other side) away from them, with
-// extension lines, arrowheads and a label. text defaults to the distance.
 function dims(x1, y1, x2, y2, text, color, offset) {
   if (isStyle(text)) {
     color = text.color;
@@ -2317,8 +2112,6 @@ function dims(x1, y1, x2, y2, text, color, offset) {
   label(str, lx, ly, color, 11, 'center');
 }
 
-// grid2d(cols, rows, fn): calls fn(col, row, i) for every cell, row by row from the bottom,
-// and returns the results as a list (i = row * cols + col).
 function grid2d(cols, rows, f) {
   var out = [];
   for (var r = 0; r < rows; r++) {
@@ -2327,9 +2120,6 @@ function grid2d(cols, rows, f) {
   return out;
 }
 
-// screenshot(name?): saves the canvas as a PNG once the current frame is drawn, without
-// the controls and hud, with the Vexel logo in the corner. name is the file name
-// (default 'vexel-sketch').
 var pendingShot = null;
 
 function screenshot(name) {
@@ -2337,7 +2127,6 @@ function screenshot(name) {
   if (!/[.]png$/i.test(pendingShot)) pendingShot += '.png';
 }
 
-// The sunflower logo: 21 dots on the golden angle, every fifth one in the accent color.
 function drawLogo(c, cx, cy, size) {
   var golden = Math.PI * (3 - Math.sqrt(5));
   var s = size / 128;
@@ -2351,7 +2140,6 @@ function drawLogo(c, cx, cy, size) {
   }
 }
 
-// The canvas as a PNG on the app background, with the Vexel logo and name in the corner.
 function brandedPng() {
   var out = document.createElement('canvas');
   out.width = canvas.width;
@@ -2397,8 +2185,6 @@ function takeScreenshot() {
   }
 }
 
-// number(name, value?, step?, min?, max?): a number field in the control panel. Click the
-// arrows to step it, or drag the number left and right to scrub. Returns the value.
 var NUMBER_ROW = 44;
 
 function number(name, value, step, min, max) {
@@ -2431,9 +2217,6 @@ function report(err) {
   }
 }
 
-// Calls f(t, dt) every frame, or every interval seconds when interval is given. The first
-// call is immediate, and the view moving or a control changing also triggers a call, so
-// the canvas is never left blank in between.
 function animate(f, interval) {
   fn = f;
   animInterval = interval > 0 ? interval : 0;
@@ -2441,8 +2224,6 @@ function animate(f, interval) {
   animStart = animLast = performance.now();
 }
 
-// Everything the sketch can use as a bare identifier. Math members (sin, PI, ...)
-// are included automatically, except those a helper shadows.
 var scopeNames = [
   'canvas', 'ctx', 'view', 'mouse', 'frame', 'animate',
   'clear', 'point', 'line', 'points', 'polyline', 'circle', 'rect', 'grid', 'axes',
@@ -2480,14 +2261,11 @@ var scopeValues = [
   textBox, dims, grid2d, screenshot, number
 ];
 Object.getOwnPropertyNames(Math).forEach(function (name) {
-  // Helpers win over Math members of the same name (log prints; use Math.log for ln, random is seeded; use Math.random for unseeded).
   if (scopeNames.indexOf(name) >= 0) return;
   scopeNames.push(name);
   scopeValues.push(Math[name]);
 });
 
-// The sketch runs inside an inner function so its own const/let declarations
-// can shadow any of the names above instead of clashing with parameters.
 var sketch = null;
 
 function execute() {
@@ -2520,7 +2298,6 @@ function tick(now) {
   var moved = dirty;
   if (moved) {
     dirty = false;
-    // Content drawn under the old camera is stale; start from a clean canvas.
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     applyCamera();
@@ -2551,7 +2328,6 @@ function tick(now) {
     frame.n++;
     animLast = clock;
   } else if (moved) {
-    // Static sketch: redraw for the new view.
     frame.n++;
     if (execute() && !fn) {
       post({ source: 'vexel', type: 'ok' });
@@ -2578,7 +2354,6 @@ window.addEventListener('message', function (e) {
   } else if (d.type === 'key') {
     setKey(d.key, d.code, !!d.down);
   } else if (d.type === 'screenshot') {
-    // The app's screenshot button: redraw once and save that frame, without the controls.
     screenshot(d.name);
     dirty = true;
   } else if (d.type === 'keyreset') {
@@ -2592,12 +2367,10 @@ window.addEventListener('message', function (e) {
     cam.y = d.y;
     cam.zoom = d.zoom;
     dirty = true;
-    // Wait for the first camera so the first frame is already correctly framed.
     start();
   }
 });
 
-// Runs the sketch for the first time and starts the frame loop.
 function start() {
   if (started) return;
   started = true;
@@ -2608,7 +2381,6 @@ function start() {
   requestAnimationFrame(tick);
 }
 
-// Exported files have no host app, so they handle their own camera and mouse.
 function setupStandalone() {
   cam.zoom = STANDALONE.zoom || 1;
   for (var key in STANDALONE.sliders || {}) savedSliders[key] = STANDALONE.sliders[key];
@@ -2618,7 +2390,6 @@ function setupStandalone() {
   var panning = false;
   var last = { x: 0, y: 0 };
 
-  // Alt + drag selects an area to zoom into; a plain Alt + click zooms out 2x.
   var selecting = null;
   var selectionBox = document.createElement('div');
   selectionBox.id = 'selection';
@@ -2671,7 +2442,6 @@ function setupStandalone() {
     dirty = true;
   }
 
-  // Pointer position readout (the app has its own next to the preview).
   var readout = document.getElementById('readout');
   var rx = document.getElementById('rx');
   var ry = document.getElementById('ry');
@@ -2683,7 +2453,6 @@ function setupStandalone() {
       readout.style.display = 'none';
       return;
     }
-    // About one digit more than a screen pixel is worth.
     var digits = Math.min(10, Math.max(0, Math.ceil(Math.log10(cam.zoom)) + 1));
     rx.textContent = 'x ' + ((cursor.x - cam.x) / cam.zoom).toFixed(digits);
     ry.textContent = 'y ' + ((cam.y - cursor.y) / cam.zoom).toFixed(digits);
@@ -2712,7 +2481,6 @@ function setupStandalone() {
   canvas.addEventListener('wheel', function (e) {
     e.preventDefault();
     var pinch = e.ctrlKey || e.metaKey;
-    // With pan locked, the plain wheel zooms, around the center so the view does not shift.
     var zooming = pinch || viewLock.pan;
     if (zooming ? viewLock.zoom : viewLock.pan) return;
     if (zooming) {
@@ -2794,7 +2562,6 @@ function setupStandalone() {
 resizeCanvas();
 updateView();
 
-// Inside the app, console.log and friends show up in the console panel too.
 if (!standalone) {
   ['log', 'info', 'warn', 'error'].forEach(function (level) {
     var original = console[level];
@@ -2810,27 +2577,15 @@ else post({ source: 'vexel', type: 'ready' });
 `;
 
 export type PreviewDocOptions = {
-  /** Build a self-contained page that handles its own camera and mouse (for export). */
   standalone?: boolean;
-  /** Initial zoom for standalone pages. */
   zoom?: number;
-  /** Initial slider values for standalone pages, by slider name. */
   sliders?: Record<string, number>;
 };
 
-/**
- * Builds the HTML document that runs user code.
- *
- * In the app it runs inside a sandboxed iframe (scripts only, opaque origin), so
- * user code can't touch the host; camera, mouse state and errors travel via
- * postMessage. With `standalone` it is a complete page that works on its own.
- */
 export function buildPreviewDoc(code: string, options: PreviewDocOptions = {}): string {
-  // Escape "<" so user code can never close the surrounding <script> tag.
   const safeCode = JSON.stringify(code).replace(/</g, '\\u003c');
   const { standalone = false, zoom = 1, sliders = {} } = options;
 
-  // Exported pages carry their own logo, so they need no files next to them.
   const dataUri = (svg: string) => 'data:image/svg+xml,' + encodeURIComponent(svg.trim());
 
   const head = standalone
@@ -2869,7 +2624,6 @@ export function buildPreviewDoc(code: string, options: PreviewDocOptions = {}): 
 <meta charset="utf-8">
 ${head}
 <style>
-  /* Match the host's color scheme so the page background stays transparent. */
   :root { color-scheme: dark; }
   html, body { margin: 0; background: ${background}; overflow: hidden; -webkit-user-select: none; user-select: none; }
   canvas { display: block; width: 100vw; height: 100vh; }${extraStyle}
