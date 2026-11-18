@@ -24,7 +24,7 @@ Vexel is an installable PWA. When served over HTTPS (or from `localhost`), the b
 - Draw in world coordinates: `(0, 0)` is the origin and **Y grows upward**.
 - Call `animate((t, dt) => { ... })` to draw every frame, or `animate(fn, 0.5)` to call it every half second. Without `animate`, the code re-runs whenever the view changes.
 - The sketch runs in a sandboxed iframe. Errors show below the editor, and your code is saved in the browser automatically.
-- **Export HTML** (above the preview) downloads a self-contained page with its own pan, zoom, sliders and helpers.
+- **Export HTML** (the download button above the preview) downloads a self-contained page with its own pan, zoom, sliders and helpers.
 - The **Examples** menu loads ready-made sketches (shapes, plots, a phase portrait, the Mandelbrot set, charts, interactive toys). Their comments explain the helpers they use.
 - The in-app **Help** has every helper with an example and a ▶ button that loads it into the editor and runs it, and `Ctrl + Space` autocompletes them.
 

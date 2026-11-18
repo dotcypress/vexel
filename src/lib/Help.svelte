@@ -293,7 +293,7 @@
 				},
 				{
 					signature: 'lockView(options?)',
-					text: 'Stops the user from moving the view: wheel, pinch, drag-to-pan and the zoom keys and buttons. lockView() locks both pan and zoom; lockView({ pan: false }) locks only zoom, lockView({ zoom: false }) only pan. fit() can still move the camera. The lock lasts until the code changes.',
+					text: 'Stops the user from moving the view: wheel, pinch, drag-to-pan and the zoom keys, and hides the zoom and Reset buttons. lockView() locks both pan and zoom; lockView({ pan: false }) locks only zoom, lockView({ zoom: false }) only pan. fit() can still move the camera. The lock lasts until the code changes.',
 					example: "lockView()\nfit(-100, -100, 200, 200)\nclear('#282c34')\ngrid()\ncircle(0, 0, 60, palette(2))\nhud('try to scroll or zoom')"
 				},
 				{

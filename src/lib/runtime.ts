@@ -1655,13 +1655,17 @@ function setupStandalone() {
 
   canvas.addEventListener('wheel', function (e) {
     e.preventDefault();
-    var zooming = e.ctrlKey || e.metaKey;
+    var pinch = e.ctrlKey || e.metaKey;
+    // With pan locked, the plain wheel zooms, around the center so the view does not shift.
+    var zooming = pinch || viewLock.pan;
     if (zooming ? viewLock.zoom : viewLock.pan) return;
     if (zooming) {
-      var z = Math.min(100, Math.max(0.01, cam.zoom * Math.exp(-e.deltaY * 0.01)));
+      var z = Math.min(100, Math.max(0.01, cam.zoom * Math.exp(-e.deltaY * (pinch ? 0.01 : 0.002))));
       var ratio = z / cam.zoom;
-      cam.x = e.clientX - (e.clientX - cam.x) * ratio;
-      cam.y = e.clientY - (e.clientY - cam.y) * ratio;
+      var ax = viewLock.pan ? window.innerWidth / 2 : e.clientX;
+      var ay = viewLock.pan ? window.innerHeight / 2 : e.clientY;
+      cam.x = ax - (ax - cam.x) * ratio;
+      cam.y = ay - (ay - cam.y) * ratio;
       cam.zoom = z;
     } else {
       cam.x -= e.deltaX;

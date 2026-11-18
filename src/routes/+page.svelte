@@ -141,7 +141,24 @@
 						</optgroup>
 					{/each}
 				</select>
-				<button onclick={() => (helpOpen = true)} title="API reference and shortcuts">Help</button>
+				<button
+					class="icon"
+					onclick={() => (helpOpen = true)}
+					title="Help: API reference and shortcuts"
+					aria-label="Help"
+				>
+					<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+						<circle cx="8" cy="8" r="6.75" fill="none" stroke="currentColor" stroke-width="1.5" />
+						<path
+							d="M6.1 6.2a1.95 1.95 0 1 1 2.7 1.8c-.5.2-.8.6-.8 1.1v.4"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="1.5"
+							stroke-linecap="round"
+						/>
+						<circle cx="8" cy="11.6" r="0.95" fill="currentColor" />
+					</svg>
+				</button>
 			</div>
 		</header>
 		<div class="editor-wrap">
@@ -226,6 +243,12 @@
 	}
 	button:hover {
 		border-color: var(--accent);
+	}
+	button.icon {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		padding: 4px 6px;
 	}
 	.examples {
 		padding: 4px 6px;

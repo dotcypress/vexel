@@ -121,12 +121,17 @@
 
 	function onWheel(e: WheelEvent) {
 		e.preventDefault();
-		const zooming = e.ctrlKey || e.metaKey;
+		const pinch = e.ctrlKey || e.metaKey;
+		// With pan locked, the plain wheel zooms instead of doing nothing.
+		const zooming = pinch || locked.pan;
 		if (zooming ? locked.zoom : locked.pan) return;
 		const r = viewport.getBoundingClientRect();
 		if (zooming) {
-			// Pinch gestures arrive as ctrl+wheel with small deltas.
-			zoomAt(zoom * Math.exp(-e.deltaY * 0.01), e.clientX - r.left, e.clientY - r.top);
+			// Pinch gestures arrive as ctrl+wheel with small deltas; wheel notches are larger.
+			const factor = Math.exp(-e.deltaY * (pinch ? 0.01 : 0.002));
+			// Zooming at the cursor would shift the view, so a pan lock zooms at the center.
+			if (locked.pan) zoomAt(zoom * factor, r.width / 2, r.height / 2);
+			else zoomAt(zoom * factor, e.clientX - r.left, e.clientY - r.top);
 		} else {
 			panX -= e.deltaX;
 			panY -= e.deltaY;
@@ -291,21 +296,49 @@
 <div class="preview">
 	<div class="toolbar">
 		<div class="group">
-			<button title="Zoom out (-)" disabled={locked.zoom} onclick={() => zoomBy(1 / 1.25)}>−</button>
-			<button class="value" title="Zoom to 100%" disabled={locked.zoom} onclick={() => zoomTo(1)}
-				>{percent}%</button
-			>
-			<button title="Zoom in (+)" disabled={locked.zoom} onclick={() => zoomBy(1.25)}>+</button>
-			<button
-				title="Reset view: origin at center, 100% (0)"
-				disabled={locked.pan || locked.zoom}
-				onclick={resetView}>Reset</button
-			>
+			{#if !locked.zoom}
+				<button title="Zoom out (-)" onclick={() => zoomBy(1 / 1.25)}>−</button>
+				<button class="value" title="Zoom to 100%" onclick={() => zoomTo(1)}>{percent}%</button>
+				<button title="Zoom in (+)" onclick={() => zoomBy(1.25)}>+</button>
+			{/if}
+			{#if !locked.pan && !locked.zoom}
+				<button
+					class="icon"
+					title="Reset view: origin at center, 100% (0)"
+					aria-label="Reset view"
+					onclick={resetView}
+				>
+					<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+						<path
+							d="M2.75 8a5.25 5.25 0 1 0 1.6-3.8M2.75 2.5v2.5h2.5"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="1.5"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						/>
+					</svg>
+				</button>
+			{/if}
 
 		</div>
 		<div class="group">
-			<button title="Download the sketch as a standalone HTML file" onclick={exportHtml}>
-				Export HTML
+			<button
+				class="icon"
+				title="Export HTML: download the sketch as a standalone page"
+				aria-label="Export HTML"
+				onclick={exportHtml}
+			>
+				<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+					<path
+						d="M8 2.5v7.5M4.75 7 8 10.25 11.25 7M2.75 11v1.25c0 .7.55 1.25 1.25 1.25h8c.7 0 1.25-.55 1.25-1.25V11"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.5"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					/>
+				</svg>
 			</button>
 		</div>
 	</div>
@@ -388,12 +421,13 @@
 		font: inherit;
 		cursor: pointer;
 	}
-	button:hover:not(:disabled) {
+	button:hover {
 		border-color: var(--accent);
 	}
-	button:disabled {
-		opacity: 0.4;
-		cursor: default;
+	button.icon {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
 	}
 
 	button.value {
