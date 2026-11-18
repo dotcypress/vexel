@@ -3,6 +3,10 @@ import faviconSvg from './assets/favicon.svg?raw';
 
 export const PROJECT_URL = 'https://github.com/dotcypress/vexel';
 
+// Zoom limits in screen pixels per world unit, shared by the app and exported pages.
+export const MIN_ZOOM = 0.0001;
+export const MAX_ZOOM = 1000000;
+
 export const DEFAULT_CODE = `// Sunflower: each seed sits one golden angle past the last.
 const golden = PI * (3 - sqrt(5))
 let spin = 0
@@ -18,7 +22,7 @@ animate((t, dt) => {
     const angle = i * golden + spin
     const radius = spread * sqrt(i) * (1 + 0.1 * sin(t * 1.5 - i * 0.02))
     const size = 4.5 + 2.5 * sin(i * 0.05 - t * 2)
-    point(cos(angle) * radius, sin(angle) * radius, size, hsl(i * 0.4 + t * 30, 90, 60))
+    point(cos(angle) * radius, sin(angle) * radius, hsl(i * 0.4 + t * 30, 90, 60), size)
   }
 })`;
 
@@ -32,6 +36,8 @@ var dpr = window.devicePixelRatio || 1;
 // Camera in CSS pixels: screen x = world x * zoom + x, screen y = y - world y * zoom
 // (Y points up). Pushed by the host.
 var cam = { x: 0, y: 0, zoom: 1 };
+var MIN_ZOOM = ${MIN_ZOOM};
+var MAX_ZOOM = ${MAX_ZOOM};
 var view = {
   x: 0, y: 0, zoom: 1,
   left: 0, top: 0, right: 0, bottom: 0,
@@ -74,13 +80,54 @@ function resizeCanvas() {
   dpr = window.devicePixelRatio || 1;
   canvas.width = Math.max(1, Math.round(window.innerWidth * dpr));
   canvas.height = Math.max(1, Math.round(window.innerHeight * dpr));
+  // Resizing wipes the context, styles included.
+  resetStyle();
   dirty = true;
+}
+
+// Every helper falls back to the current ctx styles. They start as light ink and a
+// 1 screen pixel line width, set at the start of every run. The line width keeps
+// following the zoom until the sketch sets its own.
+var INK = '#e6e8f0';
+var defaultLineWidth = 1;
+
+function resetStyle() {
+  ctx.fillStyle = INK;
+  ctx.strokeStyle = INK;
+  defaultLineWidth = 1 / cam.zoom;
+  ctx.lineWidth = defaultLineWidth;
+}
+
+function followZoom() {
+  if (Math.abs(ctx.lineWidth - defaultLineWidth) <= defaultLineWidth * 1e-6) {
+    defaultLineWidth = 1 / cam.zoom;
+    ctx.lineWidth = defaultLineWidth;
+  }
+}
+
+// A plain object in place of the style arguments: circle(0, 0, 9, { stroke: 'white' }).
+function isStyle(v) {
+  return (
+    v != null && typeof v === 'object' && !Array.isArray(v) &&
+    !(v instanceof CanvasGradient) && !(v instanceof CanvasPattern)
+  );
+}
+
+// Applies a line color and width, either positional or as { color, width }.
+function useStroke(color, lineWidth) {
+  if (isStyle(color)) {
+    lineWidth = color.width;
+    color = color.color;
+  }
+  if (color) ctx.strokeStyle = color;
+  if (lineWidth != null) ctx.lineWidth = lineWidth;
 }
 
 function applyCamera() {
   updateView();
   // Y points up: world y is negated on its way to the screen.
   ctx.setTransform(dpr * cam.zoom, 0, 0, -dpr * cam.zoom, dpr * cam.x, dpr * cam.y);
+  followZoom();
 }
 
 // Drawing helpers. Optional style arguments are applied temporarily so they
@@ -97,7 +144,16 @@ function clear(color) {
   ctx.restore();
 }
 
-function point(x, y, size, color) {
+// point(x, y, color?, size?). The older point(x, y, size, color) order still works.
+function point(x, y, color, size) {
+  if (isStyle(color)) {
+    size = color.size;
+    color = color.color;
+  } else if (typeof color === 'number') {
+    var s = color;
+    color = size;
+    size = s;
+  }
   ctx.save();
   if (color) ctx.fillStyle = color;
   ctx.beginPath();
@@ -108,8 +164,7 @@ function point(x, y, size, color) {
 
 function line(x1, y1, x2, y2, color, lineWidth) {
   ctx.save();
-  if (color) ctx.strokeStyle = color;
-  if (lineWidth != null) ctx.lineWidth = lineWidth;
+  useStroke(color, lineWidth);
   ctx.beginPath();
   ctx.moveTo(x1, y1);
   ctx.lineTo(x2, y2);
@@ -117,17 +172,26 @@ function line(x1, y1, x2, y2, color, lineWidth) {
   ctx.restore();
 }
 
-function points(list, size, color) {
+// points(points, color?, size?). The older points(points, size, color) order still works.
+function points(list, color, size) {
+  if (isStyle(color)) {
+    size = color.size;
+    color = color.color;
+  } else if (typeof color === 'number') {
+    var s = color;
+    color = size;
+    size = s;
+  }
   for (var i = 0; i < list.length; i++) {
-    point(list[i][0], list[i][1], size, color);
+    point(list[i][0], list[i][1], color, size);
   }
 }
 
 function polyline(list, color, lineWidth, closed) {
   if (list.length < 2) return;
+  if (isStyle(color)) closed = color.closed;
   ctx.save();
-  if (color) ctx.strokeStyle = color;
-  if (lineWidth != null) ctx.lineWidth = lineWidth;
+  useStroke(color, lineWidth);
   ctx.beginPath();
   ctx.moveTo(list[0][0], list[0][1]);
   for (var i = 1; i < list.length; i++) ctx.lineTo(list[i][0], list[i][1]);
@@ -137,7 +201,14 @@ function polyline(list, color, lineWidth, closed) {
 }
 
 // Fills and/or strokes the current path. fill defaults to on, stroke to off.
+// As an object, { fill } fills and { stroke } outlines; with neither it fills.
 function paint(fill, stroke, lineWidth) {
+  if (isStyle(fill)) {
+    var o = fill;
+    lineWidth = o.width;
+    stroke = o.stroke;
+    fill = o.fill != null ? o.fill : o.stroke != null ? false : undefined;
+  }
   if (fill !== false && fill !== null) {
     if (fill !== true && fill !== undefined) ctx.fillStyle = fill;
     ctx.fill();
@@ -158,6 +229,7 @@ function circle(x, y, radius, fill, stroke, lineWidth) {
 }
 
 function ellipse(x, y, rx, ry, fill, stroke, lineWidth, rotation) {
+  if (isStyle(fill)) rotation = fill.rotation;
   ctx.save();
   ctx.beginPath();
   ctx.ellipse(x, y, Math.abs(rx), Math.abs(ry), rotation || 0, 0, Math.PI * 2);
@@ -168,8 +240,7 @@ function ellipse(x, y, rx, ry, fill, stroke, lineWidth, rotation) {
 // Stroked arc of a circle, from angle start to end in radians, counterclockwise.
 function arc(x, y, radius, start, end, color, lineWidth) {
   ctx.save();
-  if (color) ctx.strokeStyle = color;
-  if (lineWidth != null) ctx.lineWidth = lineWidth;
+  useStroke(color, lineWidth);
   ctx.beginPath();
   ctx.arc(x, y, Math.abs(radius), start, end, end < start);
   ctx.stroke();
@@ -285,7 +356,7 @@ function tickStep(minPx) {
 // by sticking to the edge when an axis is off-screen.
 function axes(color) {
   ctx.save();
-  ctx.strokeStyle = color || 'rgba(91, 108, 240, 0.8)';
+  ctx.strokeStyle = color || 'rgba(255, 255, 255, 0.3)';
   ctx.lineWidth = 1 / cam.zoom;
   ctx.beginPath();
   ctx.moveTo(view.left, 0);
@@ -325,8 +396,7 @@ function axes(color) {
 // Quadratic Bezier from (x1, y1) to (x2, y2), pulled toward the control point (cx, cy).
 function curve(x1, y1, cx, cy, x2, y2, color, lineWidth) {
   ctx.save();
-  if (color) ctx.strokeStyle = color;
-  if (lineWidth != null) ctx.lineWidth = lineWidth;
+  useStroke(color, lineWidth);
   ctx.beginPath();
   ctx.moveTo(x1, y1);
   ctx.quadraticCurveTo(cx, cy, x2, y2);
@@ -337,7 +407,7 @@ function curve(x1, y1, cx, cy, x2, y2, color, lineWidth) {
 // Vector field: f(x, y) returns [dx, dy] and an arrow starts at every step-th world point
 // (default 20). An arrow is as long as the vector, capped just under step so arrows never
 // overlap. Skipped when the arrows would be too dense to read.
-function field(f, step, color) {
+function field(f, step, color, lineWidth) {
   step = step > 0 ? step : 20;
   if (step * cam.zoom < 8) return;
   var i0 = Math.ceil(view.left / step);
@@ -348,8 +418,7 @@ function field(f, step, color) {
   var cap = step * 0.9;
   var headMax = px(6);
   ctx.save();
-  ctx.strokeStyle = color || PALETTE[5];
-  ctx.lineWidth = px(1.5);
+  useStroke(color, lineWidth);
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
   ctx.beginPath();
@@ -408,31 +477,61 @@ function rampLut(name) {
     return [parseInt(s.substr(1, 2), 16), parseInt(s.substr(3, 2), 16), parseInt(s.substr(5, 2), 16)];
   });
   var lut = [];
+  var bytes = new Uint8ClampedArray(256 * 4);
   for (var n = 0; n < 256; n++) {
     var t = (n / 255) * (rgbs.length - 1);
     var i = Math.min(rgbs.length - 2, Math.floor(t));
     var u = t - i;
     var a = rgbs[i];
     var b = rgbs[i + 1];
-    lut.push(
-      'rgb(' + Math.round(a[0] + (b[0] - a[0]) * u) + ', ' +
-      Math.round(a[1] + (b[1] - a[1]) * u) + ', ' +
-      Math.round(a[2] + (b[2] - a[2]) * u) + ')'
-    );
+    var r = Math.round(a[0] + (b[0] - a[0]) * u);
+    var g = Math.round(a[1] + (b[1] - a[1]) * u);
+    var bl = Math.round(a[2] + (b[2] - a[2]) * u);
+    lut.push('rgb(' + r + ', ' + g + ', ' + bl + ')');
+    bytes[n * 4] = r;
+    bytes[n * 4 + 1] = g;
+    bytes[n * 4 + 2] = bl;
+    bytes[n * 4 + 3] = 255;
   }
+  lut.bytes = bytes;   // the same colors as RGBA bytes, for pixel-by-pixel drawing
   rampLuts[name] = lut;
   return lut;
+}
+
+// RGBA bytes of any CSS color string, cached. Used when a ramp function returns colors
+// for pixel-by-pixel drawing.
+var colorBytes = Object.create(null);
+var colorProbe = null;
+
+function cssColorBytes(color) {
+  if (colorBytes[color]) return colorBytes[color];
+  if (!colorProbe) {
+    colorProbe = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+    colorProbe.canvas.width = colorProbe.canvas.height = 1;
+  }
+  colorProbe.clearRect(0, 0, 1, 1);
+  colorProbe.fillStyle = '#000';
+  colorProbe.fillStyle = color;
+  colorProbe.fillRect(0, 0, 1, 1);
+  return (colorBytes[color] = colorProbe.getImageData(0, 0, 1, 1).data);
 }
 
 // Colors the whole view by f(x, y), which returns a number from 0 to 1 (clamped).
 // ramp is the name of a built-in colormap ('viridis' by default) or a function t => color.
 // Cells are a few screen pixels wide; the result is opaque, so draw it first.
-function heat(f, ramp) {
+// heat(f, ramp?, cell?): cell is the cell size in screen pixels. By default
+// it is chosen so the view holds about 10,000 cells (at least 8 pixels each).
+// A cell of 1 samples f at every screen pixel and draws the result as an image.
+function heat(f, ramp, cell) {
   var lut = null;
   if (typeof ramp !== 'function') lut = rampLut(ramp == null ? 'viridis' : String(ramp));
   var w = window.innerWidth;
   var h = window.innerHeight;
-  var c = Math.max(8, Math.ceil(Math.sqrt((w * h) / 10000)));
+  var c = cell > 0 ? Math.max(1, Math.round(cell)) : Math.max(8, Math.ceil(Math.sqrt((w * h) / 10000)));
+  if (c === 1) {
+    heatPixels(f, ramp, lut, w, h);
+    return;
+  }
   ctx.save();
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   for (var sy = 0; sy < h; sy += c) {
@@ -535,18 +634,20 @@ function lerp(a, b, t) {
   return a + (b - a) * t;
 }
 
-// once(fn) or once(key, fn): calls fn the first time and returns the cached result
+// once(fn, key?): calls fn the first time and returns the cached result
 // after that, across frames and across re-runs from panning or controls. Editing the
 // code reloads the preview, which clears the cache. Without a key, the function's
 // source text is the key.
 var onceCache = Object.create(null);
 
-function once(key, fn) {
-  if (typeof key === 'function') {
+// The older once(key, fn) order still works.
+function once(fn, key) {
+  if (typeof fn !== 'function') {
+    var k = fn;
     fn = key;
-    key = String(fn);
+    key = k;
   }
-  key = String(key);
+  key = key == null ? String(fn) : String(key);
   if (!(key in onceCache)) onceCache[key] = fn();
   return onceCache[key];
 }
@@ -596,6 +697,51 @@ function gauss(mean, sd) {
 }
 
 // Function t (0..1) => color for a ramp argument: a built-in name or your own function.
+// One sample per screen pixel, written straight into an image the size of the view.
+var heatCanvas = null;
+
+function heatPixels(f, ramp, lut, w, h) {
+  w = Math.ceil(w);
+  h = Math.ceil(h);
+  if (!heatCanvas) heatCanvas = document.createElement('canvas');
+  if (heatCanvas.width !== w || heatCanvas.height !== h) {
+    heatCanvas.width = w;
+    heatCanvas.height = h;
+  }
+  var hctx = heatCanvas.getContext('2d');
+  var image = hctx.createImageData(w, h);
+  var data = image.data;
+  // A ramp function is sampled at 256 levels once, like the named ramps.
+  var bytes = lut ? lut.bytes : new Uint8ClampedArray(256 * 4);
+  if (!lut) {
+    for (var n = 0; n < 256; n++) {
+      var color = ramp(n / 255);
+      if (color) {
+        bytes.set(cssColorBytes(String(color)), n * 4);
+      }
+    }
+  }
+  for (var sy = 0; sy < h; sy++) {
+    var y = (cam.y - sy - 0.5) / cam.zoom;
+    for (var sx = 0; sx < w; sx++) {
+      var v = f((sx + 0.5 - cam.x) / cam.zoom, y);
+      if (typeof v !== 'number' || !isFinite(v)) continue;
+      var k = Math.round((v < 0 ? 0 : v > 1 ? 1 : v) * 255) * 4;
+      var o = (sy * w + sx) * 4;
+      data[o] = bytes[k];
+      data[o + 1] = bytes[k + 1];
+      data[o + 2] = bytes[k + 2];
+      data[o + 3] = bytes[k + 3];
+    }
+  }
+  hctx.putImageData(image, 0, 0);
+  ctx.save();
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(heatCanvas, 0, 0, w, h);
+  ctx.restore();
+}
+
 function rampFn(ramp) {
   if (typeof ramp === 'function') return ramp;
   var lut = rampLut(ramp == null ? 'viridis' : String(ramp));
@@ -606,7 +752,13 @@ function rampFn(ramp) {
 
 // Dots at [x, y, value] triples, colored by value (0..1, clamped) with a ramp as in heat().
 // size is the diameter in world units (default 4). Entries without a value use the ramp's start.
-function scatter(list, size, ramp) {
+// scatter(points, ramp?, size?). The older scatter(points, size, ramp) order still works.
+function scatter(list, ramp, size) {
+  if (typeof ramp === 'number') {
+    var s = ramp;
+    ramp = size;
+    size = s;
+  }
   var color = rampFn(ramp);
   var r = (size == null ? 4 : size) / 2;
   ctx.save();
@@ -631,7 +783,7 @@ function bars(list, width, color) {
   for (var i = 0; i < list.length; i++) {
     var v = list[i];
     if (typeof v !== 'number' || !isFinite(v)) continue;
-    var c = typeof color === 'function' ? color(i, v) : color || PALETTE[0];
+    var c = typeof color === 'function' ? color(i, v) : color;
     if (c) ctx.fillStyle = c;
     ctx.fillRect(i * width + width * 0.1, 0, width * 0.8, v);
   }
@@ -641,7 +793,7 @@ function bars(list, width, color) {
 // Histogram of a list of numbers in the given number of bins (default 10) between its
 // smallest and largest value. x is the data value and a bar is as tall as its count, both
 // in world units. Returns the counts.
-function hist(list, bins) {
+function hist(list, bins, color) {
   var data = [];
   for (var i = 0; i < list.length; i++) {
     if (typeof list[i] === 'number' && isFinite(list[i])) data.push(list[i]);
@@ -666,7 +818,7 @@ function hist(list, bins) {
   }
   var gap = bw * cam.zoom > 3 ? px(1) : 0;
   ctx.save();
-  ctx.fillStyle = PALETTE[0];
+  if (color) ctx.fillStyle = color;
   for (i = 0; i < n; i++) ctx.fillRect(min + i * bw, 0, bw - gap, counts[i]);
   ctx.restore();
   return counts;
@@ -693,8 +845,7 @@ function contour(f, level, color, lineWidth) {
   }
 
   ctx.save();
-  ctx.strokeStyle = color || PALETTE[0];
-  ctx.lineWidth = lineWidth == null ? px(1.5) : lineWidth;
+  useStroke(color, lineWidth);
   ctx.lineCap = 'round';
   ctx.beginPath();
   function seg(ax, ay, bx, by) {
@@ -748,7 +899,18 @@ var trails = Object.create(null);
 
 // Remembers the last n positions (default 50) under id and draws them as a line that
 // fades out toward the oldest. Call it once per frame, e.g. inside animate.
-function trail(id, x, y, n, color) {
+// trail(id, x, y, color?, n?). The older trail(id, x, y, n, color) order still works.
+function trail(id, x, y, color, n) {
+  var lineWidth;
+  if (isStyle(color)) {
+    n = color.n;
+    lineWidth = color.width;
+    color = color.color;
+  } else if (typeof color === 'number') {
+    var k = color;
+    color = n;
+    n = k;
+  }
   id = String(id);
   n = n > 1 ? Math.min(Math.floor(n), 10000) : 50;
   var pts = trails[id] || (trails[id] = []);
@@ -760,8 +922,7 @@ function trail(id, x, y, n, color) {
   if (pts.length > n) pts.splice(0, pts.length - n);
   if (pts.length < 2) return;
   ctx.save();
-  ctx.strokeStyle = color || PALETTE[0];
-  ctx.lineWidth = px(2);
+  useStroke(color, lineWidth);
   ctx.lineCap = 'round';
   var alpha = ctx.globalAlpha;
   for (var i = 1; i < pts.length; i++) {
@@ -823,7 +984,7 @@ function fit(x, y, w, h) {
   var id = [x, y, w, h].join(',');
   if (id === lastFit) return;
   lastFit = id;
-  var zoom = Math.min(100, Math.max(0.01, Math.min(vw / w, vh / h) * 0.9));
+  var zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.min(vw / w, vh / h) * 0.9));
   cam.zoom = zoom;
   cam.x = vw / 2 - (x + w / 2) * zoom;
   cam.y = vh / 2 + (y + h / 2) * zoom;
@@ -833,15 +994,15 @@ function fit(x, y, w, h) {
   post({ source: 'vexel', type: 'camera', x: cam.x, y: cam.y, zoom: zoom });
 }
 
-// lockView(options?): stops the user from panning and/or zooming the view. With no
-// argument both are locked; { pan: false } locks only zoom, { zoom: false } only pan.
-// fit() still moves the camera. Editing the code clears the lock.
+// lockView(pan?, zoom?): stops the user from panning and/or zooming the view. Both
+// default to true, so lockView() locks both; lockView(true, false) locks only pan and
+// lockView(false, true) only zoom. fit() still moves the camera. Editing the code
+// clears the lock.
 var viewLock = { pan: false, zoom: false };
 
-function lockView(options) {
-  var o = options || {};
-  var pan = o.pan !== false;
-  var zoom = o.zoom !== false;
+function lockView(pan, zoom) {
+  pan = pan !== false;
+  zoom = zoom !== false;
   if (pan === viewLock.pan && zoom === viewLock.zoom) return;
   viewLock.pan = pan;
   viewLock.zoom = zoom;
@@ -851,8 +1012,13 @@ function lockView(options) {
 // Text at (x, y), vertically centered. size is in world units (default 14);
 // align is 'left' (default), 'center' or 'right'.
 function text(str, x, y, color, size, align) {
+  if (isStyle(color)) {
+    size = color.size;
+    align = color.align;
+    color = color.color;
+  }
   ctx.save();
-  ctx.fillStyle = color || '#e6e8f0';
+  if (color) ctx.fillStyle = color;
   ctx.font = (size == null ? 14 : size) + 'px ui-sans-serif, system-ui, sans-serif';
   ctx.textAlign = align || 'left';
   ctx.textBaseline = 'middle';
@@ -866,13 +1032,16 @@ function text(str, x, y, color, size, align) {
 // Graph of y = f(x) over the visible x range, or from..to when given.
 // Gaps appear wherever f returns something that is not a finite number.
 function plot(f, color, lineWidth, from, to) {
+  if (isStyle(color)) {
+    from = color.from;
+    to = color.to;
+  }
   var x0 = Math.max(from == null ? view.left : from, view.left);
   var x1 = Math.min(to == null ? view.right : to, view.right);
   if (!(x1 > x0)) return;
   var n = Math.min(4000, Math.max(2, Math.ceil(((x1 - x0) * cam.zoom) / 2)));
   ctx.save();
-  ctx.strokeStyle = color || PALETTE[0];
-  if (lineWidth != null) ctx.lineWidth = lineWidth;
+  useStroke(color, lineWidth);
   ctx.lineJoin = 'round';
   ctx.beginPath();
   var pen = false;
@@ -897,8 +1066,7 @@ function plot(f, color, lineWidth, from, to) {
 function plotPolar(f, color, lineWidth) {
   var n = 2000;
   ctx.save();
-  ctx.strokeStyle = color || PALETTE[0];
-  if (lineWidth != null) ctx.lineWidth = lineWidth;
+  useStroke(color, lineWidth);
   ctx.lineJoin = 'round';
   ctx.beginPath();
   var pen = false;
@@ -924,13 +1092,24 @@ function plotPolar(f, color, lineWidth) {
 
 // Parametric curve x = fx(t), y = fy(t) for t from t0 to t1 (default 0 to 2*PI).
 // Gaps appear wherever fx or fy returns something that is not a finite number.
-function plotParam(fx, fy, t0, t1, color, lineWidth) {
-  if (t0 == null) t0 = 0;
-  if (t1 == null) t1 = Math.PI * 2;
+// plotParam(fx, fy, color?, lineWidth?, from?, to?), like plot. The older
+// plotParam(fx, fy, from, to, color, lineWidth) order still works.
+function plotParam(fx, fy, color, lineWidth, from, to) {
+  if (typeof color === 'number') {
+    var a = [color, lineWidth, from, to];
+    from = a[0];
+    to = a[1];
+    color = a[2];
+    lineWidth = a[3];
+  } else if (isStyle(color)) {
+    from = color.from;
+    to = color.to;
+  }
+  var t0 = from == null ? 0 : from;
+  var t1 = to == null ? Math.PI * 2 : to;
   var n = 2000;
   ctx.save();
-  ctx.strokeStyle = color || PALETTE[0];
-  if (lineWidth != null) ctx.lineWidth = lineWidth;
+  useStroke(color, lineWidth);
   ctx.lineJoin = 'round';
   ctx.beginPath();
   var pen = false;
@@ -1513,6 +1692,7 @@ function execute() {
     handleList = [];
     seed(DEFAULT_SEED);
     latchClicks();
+    resetStyle();
     sketch.apply(null, scopeValues);
     drawOverlays();
     return true;
@@ -1619,6 +1799,59 @@ function setupStandalone() {
   var panning = false;
   var last = { x: 0, y: 0 };
 
+  // Alt + drag selects an area to zoom into; a plain Alt + click zooms out 2x.
+  var selecting = null;
+  var selectionBox = document.createElement('div');
+  selectionBox.id = 'selection';
+  document.body.appendChild(selectionBox);
+
+  function selectionRect() {
+    return {
+      left: Math.min(selecting.x0, selecting.x1),
+      top: Math.min(selecting.y0, selecting.y1),
+      width: Math.abs(selecting.x1 - selecting.x0),
+      height: Math.abs(selecting.y1 - selecting.y0)
+    };
+  }
+
+  function showSelection() {
+    if (!selecting) {
+      selectionBox.style.display = 'none';
+      return;
+    }
+    var r = selectionRect();
+    selectionBox.style.display = 'block';
+    selectionBox.style.left = r.left + 'px';
+    selectionBox.style.top = r.top + 'px';
+    selectionBox.style.width = r.width + 'px';
+    selectionBox.style.height = r.height + 'px';
+  }
+
+  function zoomAround(z, sx, sy) {
+    z = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
+    var ratio = z / cam.zoom;
+    cam.x = sx - (sx - cam.x) * ratio;
+    cam.y = sy - (sy - cam.y) * ratio;
+    cam.zoom = z;
+    dirty = true;
+  }
+
+  function zoomToSelection() {
+    var r = selectionRect();
+    if (r.width < 5 || r.height < 5) {
+      zoomAround(cam.zoom / 2, r.left, r.top);
+      return;
+    }
+    var vw = window.innerWidth;
+    var vh = window.innerHeight;
+    var worldX = (r.left + r.width / 2 - cam.x) / cam.zoom;
+    var worldY = (cam.y - (r.top + r.height / 2)) / cam.zoom;
+    cam.zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, cam.zoom * Math.min(vw / r.width, vh / r.height)));
+    cam.x = vw / 2 - worldX * cam.zoom;
+    cam.y = vh / 2 + worldY * cam.zoom;
+    dirty = true;
+  }
+
   // Pointer position readout (the app has its own next to the preview).
   var readout = document.getElementById('readout');
   var rx = document.getElementById('rx');
@@ -1632,7 +1865,7 @@ function setupStandalone() {
       return;
     }
     // About one digit more than a screen pixel is worth.
-    var digits = Math.min(6, Math.max(0, Math.ceil(Math.log10(cam.zoom)) + 1));
+    var digits = Math.min(10, Math.max(0, Math.ceil(Math.log10(cam.zoom)) + 1));
     rx.textContent = 'x ' + ((cursor.x - cam.x) / cam.zoom).toFixed(digits);
     ry.textContent = 'y ' + ((cam.y - cursor.y) / cam.zoom).toFixed(digits);
     readout.style.display = 'flex';
@@ -1646,6 +1879,12 @@ function setupStandalone() {
   }
 
   function release() {
+    if (selecting) {
+      zoomToSelection();
+      selecting = null;
+      showSelection();
+      return;
+    }
     panning = false;
     mouse.down = false;
     updateSliders();
@@ -1658,7 +1897,7 @@ function setupStandalone() {
     var zooming = pinch || viewLock.pan;
     if (zooming ? viewLock.zoom : viewLock.pan) return;
     if (zooming) {
-      var z = Math.min(100, Math.max(0.01, cam.zoom * Math.exp(-e.deltaY * (pinch ? 0.01 : 0.002))));
+      var z = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, cam.zoom * Math.exp(-e.deltaY * (pinch ? 0.01 : 0.002))));
       var ratio = z / cam.zoom;
       var ax = viewLock.pan ? window.innerWidth / 2 : e.clientX;
       var ay = viewLock.pan ? window.innerHeight / 2 : e.clientY;
@@ -1675,6 +1914,14 @@ function setupStandalone() {
 
   canvas.addEventListener('pointerdown', function (e) {
     canvas.setPointerCapture(e.pointerId);
+    if (e.button === 0 && e.altKey) {
+      e.preventDefault();
+      if (!viewLock.pan && !viewLock.zoom) {
+        selecting = { x0: e.clientX, y0: e.clientY, x1: e.clientX, y1: e.clientY };
+        showSelection();
+      }
+      return;
+    }
     if (e.button === 1 || e.button === 2) {
       if (viewLock.pan) return;
       panning = true;
@@ -1688,7 +1935,11 @@ function setupStandalone() {
   });
 
   canvas.addEventListener('pointermove', function (e) {
-    if (panning) {
+    if (selecting) {
+      selecting.x1 = e.clientX;
+      selecting.y1 = e.clientY;
+      showSelection();
+    } else if (panning) {
       cam.x += e.clientX - last.x;
       cam.y += e.clientY - last.y;
       last.x = e.clientX;
@@ -1707,7 +1958,14 @@ function setupStandalone() {
     updateReadout();
   });
 
-  window.addEventListener('keydown', function (e) { setKey(e.key, e.code, true); });
+  window.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && selecting) {
+      selecting = null;
+      showSelection();
+      return;
+    }
+    setKey(e.key, e.code, true);
+  });
   window.addEventListener('keyup', function (e) { setKey(e.key, e.code, false); });
   window.addEventListener('blur', clearKeys);
 
@@ -1767,6 +2025,8 @@ export function buildPreviewDoc(code: string, options: PreviewDocOptions = {}): 
   #err { display: none; position: fixed; left: 0; right: 0; bottom: 0; margin: 0; padding: 8px 12px;
     color: #ffb4b4; background: #3a1d22; font: 12px/1.5 ui-monospace, Menlo, Consolas, monospace;
     white-space: pre-wrap; }
+  #selection { display: none; position: fixed; pointer-events: none; background: rgba(91, 108, 240, 0.15);
+    border: 1px dashed #5b6cf0; border-radius: 2px; }
   #readout { display: none; position: fixed; left: 8px; bottom: 8px; gap: 12px; padding: 3px 8px;
     pointer-events: none; color: #d7dae0; background: rgba(21, 23, 30, 0.8); border: 1px solid #2c303c;
     border-radius: 4px; font: 11px/1.3 ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
@@ -1792,7 +2052,7 @@ ${head}
 <style>
   /* Match the host's color scheme so the page background stays transparent. */
   :root { color-scheme: dark; }
-  html, body { margin: 0; background: ${background}; overflow: hidden; }
+  html, body { margin: 0; background: ${background}; overflow: hidden; -webkit-user-select: none; user-select: none; }
   canvas { display: block; width: 100vw; height: 100vh; }${extraStyle}
 </style>
 </head>

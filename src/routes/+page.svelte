@@ -174,7 +174,11 @@
 	></div>
 
 	<section class="right">
-		<Preview code={appliedCode} {runId} onerror={(m) => (error = m)} {onlog} onreset={() => (logs = [])} />
+		<!-- Wait for the saved code: starting the default sketch and then replacing it
+		     right away raced, leaving a stale or empty preview after a refresh. -->
+		{#if loaded}
+			<Preview code={appliedCode} {runId} onerror={(m) => (error = m)} {onlog} onreset={() => (logs = [])} />
+		{/if}
 	</section>
 </div>
 

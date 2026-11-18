@@ -39,14 +39,14 @@ export const SKETCH: Completion[] = [
 	},
 
 	fn('clear', 'color?', 'Fill the whole canvas with color, or make it transparent if omitted.'),
-	fn('point', 'x, y, size?, color?', 'Filled dot. size is the diameter (default 4).', 'point(${x}, ${y})'),
+	fn('point', 'x, y, color?, size?', 'Filled dot. size is the diameter (default 4).', 'point(${x}, ${y})'),
 	fn('line', 'x1, y1, x2, y2, color?, lineWidth?', 'Line segment.', 'line(${x1}, ${y1}, ${x2}, ${y2})'),
-	fn('points', 'list, size?, color?', 'Draw many dots from [[x, y], ...].', 'points(${list})'),
+	fn('points', 'points, color?, size?', 'A dot at every [x, y] in points.', 'points(${points})'),
 	fn(
 		'polyline',
-		'list, color?, lineWidth?, closed?',
-		'Connected lines through [[x, y], ...]. closed = true joins the ends.',
-		'polyline(${list})'
+		'points, color?, lineWidth?, closed?',
+		'Lines through the [x, y] points in order. closed = true joins the ends.',
+		'polyline(${points})'
 	),
 	fn(
 		'circle',
@@ -68,9 +68,9 @@ export const SKETCH: Completion[] = [
 	),
 	fn(
 		'poly',
-		'list, fill?, stroke?, lineWidth?',
-		'Closed polygon through [[x, y], ...]. fill and stroke work like circle().',
-		'poly(${list})'
+		'points, fill?, stroke?, lineWidth?',
+		'Closed polygon through the [x, y] points. fill and stroke work like circle().',
+		'poly(${points})'
 	),
 	fn(
 		'rect',
@@ -135,8 +135,8 @@ export const SKETCH: Completion[] = [
 	),
 	fn(
 		'plotParam',
-		'fx, fy, t0?, t1?, color?, lineWidth?',
-		'Parametric curve x = fx(t), y = fy(t) for t from t0 to t1 (default 0 to 2*PI). Gaps where either is not a finite number.',
+		'fx, fy, color?, lineWidth?, from?, to?',
+		'Parametric curve x = fx(t), y = fy(t) for t from from to to (default 0 to 2*PI). Gaps where either is not a finite number.',
 		'plotParam((t) => ${}, (t) => ${})'
 	),
 	fn(
@@ -171,25 +171,25 @@ export const SKETCH: Completion[] = [
 	),
 	fn(
 		'field',
-		'f, step?, color?',
+		'f, step?, color?, lineWidth?',
 		'Vector field: f(x, y) returns [dx, dy] and an arrow is drawn every step world units (default 20), as long as the vector but capped below step.',
 		'field((x, y) => [${dx}, ${dy}])'
 	),
 	fn(
 		'heat',
-		'f, ramp?',
-		"Colors the view by f(x, y), a number from 0 to 1. ramp: a colormap name ('viridis' default, 'magma', 'inferno', 'plasma', 'cividis', 'turbo', 'hot', 'coolwarm', 'gray', 'vexel') or a function t => color. Opaque: draw it first.",
+		'f, ramp?, cell?',
+		"Colors the view by f(x, y), a number from 0 to 1. ramp: a colormap name ('viridis' default, 'magma', 'inferno', 'plasma', 'cividis', 'turbo', 'hot', 'coolwarm', 'gray', 'vexel') or a function t => color. cell: cell size in screen pixels (default about 8-10; 1 for every pixel). Opaque: draw it first.",
 		'heat((x, y) => ${})'
 	),
 	fn(
 		'hover',
 		'x, y, r',
-		'True while the pointer is within r world units of x, y. Static sketches re-run when the result changes.',
+		'True while the pointer is within r world units of x, y (r scales with zoom, unlike drag). Static sketches re-run when the result changes.',
 		'hover(${x}, ${y}, ${r})'
 	),
 	fn(
 		'trail',
-		'id, x, y, n?, color?',
+		'id, x, y, color?, n?',
 		'Remembers the last n positions (default 50) under id and draws them fading out. Call it once per frame, e.g. in animate.',
 		'trail("${id}", ${x}, ${y})'
 	),
@@ -207,9 +207,9 @@ export const SKETCH: Completion[] = [
 	),
 	fn(
 		'scatter',
-		'list, size?, ramp?',
-		"Dots from [[x, y, value], ...], colored by value (0 to 1). ramp: a colormap name ('viridis' default, 'magma', 'inferno', 'plasma', 'cividis', 'turbo', 'hot', 'coolwarm', 'gray', 'vexel') or a function t => color.",
-		'scatter(${list})'
+		'points, ramp?, size?',
+		"Dots from [x, y, value] points, colored by value (0 to 1). ramp: a colormap name ('viridis' default, 'magma', 'inferno', 'plasma', 'cividis', 'turbo', 'hot', 'coolwarm', 'gray', 'vexel') or a function t => color.",
+		'scatter(${points})'
 	),
 	fn(
 		'bars',
@@ -219,7 +219,7 @@ export const SKETCH: Completion[] = [
 	),
 	fn(
 		'hist',
-		'list, bins?',
+		'list, bins?, color?',
 		'Histogram of numbers in bins (default 10) across their range: x is the value, height is the count. Returns the counts.',
 		'hist(${list})'
 	),
@@ -279,7 +279,7 @@ export const SKETCH: Completion[] = [
 	),
 	fn(
 		'once',
-		'key?, fn',
+		'fn, key?',
 		'Calls fn the first time and returns the same result after that, across frames and re-runs from panning or controls. Editing the code starts over. Pass a key to tell apart functions with the same source.',
 		'once(() => ${})'
 	),
@@ -298,13 +298,13 @@ export const SKETCH: Completion[] = [
 	fn(
 		'drag',
 		'id, x, y, r?, color?',
-		'A handle the user can drag, starting at x, y. Returns its current [x, y]. The position survives re-runs and code edits. r is the grab radius in screen pixels (default 8).',
+		'A handle the user can drag, starting at x, y. Returns its current [x, y]. The position survives re-runs and code edits. r is the grab radius in screen pixels (default 8), so it keeps its size at any zoom.',
 		'drag("${id}", ${x}, ${y})'
 	),
 	fn(
 		'lockView',
-		'options?',
-		'Stops the user from panning and zooming. lockView() locks both; { pan: false } locks only zoom, { zoom: false } only pan. fit() still works. Editing the code clears the lock.',
+		'pan?, zoom?',
+		'Stops the user from panning and/or zooming. Both default to true: lockView() locks both, lockView(true, false) only pan, lockView(false, true) only zoom. fit() still works. Editing the code clears the lock.',
 		'lockView()'
 	)
 ];

@@ -51,7 +51,9 @@ animate((t) => {
 
 ### Helpers
 
-Optional arguments fall back to the current `ctx` styles and never change them.
+Arguments always come in the same order: geometry first, then colors, then size or line width, then extras. Instead of the style arguments you can pass one object: `line(0, 0, 50, 50, { color: 'red', width: 3 })`, `circle(0, 0, 40, { stroke: 'white', width: px(2) })`, `ellipse(0, 0, 60, 30, { fill: 'teal', rotation: 0.5 })`.
+
+Left-out styles fall back to the current `ctx` styles, and helpers never change them. Each run starts with light ink and lines 1 screen pixel wide.
 
 **Canvas, guides and view**
 
@@ -67,32 +69,32 @@ Optional arguments fall back to the current `ctx` styles and never change them.
 
 | Helper | Description |
 |---|---|
-| `point(x, y, size?, color?)` | Filled dot. |
-| `points([[x, y], ...], size?, color?)` | Many dots. |
+| `point(x, y, color?, size?)` | Filled dot. |
+| `points(points, color?, size?)` | A dot at every `[x, y]`. |
 | `line(x1, y1, x2, y2, color?, lineWidth?)` | Line segment. |
-| `polyline([[x, y], ...], color?, lineWidth?, closed?)` | Connected lines. |
+| `polyline(points, color?, lineWidth?, closed?)` | Connected lines. |
 | `curve(x1, y1, cx, cy, x2, y2, color?, lineWidth?)` | Quadratic Bezier curve. |
 | `circle(x, y, radius, fill?, stroke?, lineWidth?)` | Circle. |
 | `ellipse(x, y, rx, ry, fill?, stroke?, lineWidth?, rotation?)` | Ellipse, optionally rotated (radians). |
 | `arc(x, y, radius, start, end, color?, lineWidth?)` | Stroked arc from angle `start` to `end` (radians, counterclockwise). |
-| `poly([[x, y], ...], fill?, stroke?, lineWidth?)` | Closed, filled polygon. |
+| `poly(points, fill?, stroke?, lineWidth?)` | Closed, filled polygon. |
 | `rect(x, y, w, h, fill?, stroke?, lineWidth?)` | Rectangle from its bottom-left corner. |
 | `text(str, x, y, color?, size?, align?)` | Text in world units. |
-| `trail(id, x, y, n?, color?)` | Fading line through the last `n` positions. |
+| `trail(id, x, y, color?, n?)` | Fading line through the last `n` positions. |
 
 **Plots**
 
 | Helper | Description |
 |---|---|
 | `plot(f, color?, lineWidth?, from?, to?)` | Graph of `y = f(x)`. |
-| `plotParam(fx, fy, t0?, t1?, color?, lineWidth?)` | Parametric curve `x = fx(t), y = fy(t)`, t from 0 to 2π by default. |
+| `plotParam(fx, fy, color?, lineWidth?, from?, to?)` | Parametric curve `x = fx(t), y = fy(t)`, t from 0 to 2π by default. |
 | `plotPolar(f, color?, lineWidth?)` | Graph of `r = f(theta)` for theta from 0 to 2π. |
 | `contour(f, level?, color?, lineWidth?)` | Curve where `f(x, y) = level`. |
-| `field(f, step?, color?)` | Vector field; `f(x, y)` returns `[dx, dy]`. |
-| `heat(f, ramp?)` | Color the view by `f(x, y)` in 0..1. Draw it first. |
-| `scatter(list, size?, ramp?)` | Dots from `[x, y, value]`, colored by value. |
+| `field(f, step?, color?, lineWidth?)` | Vector field; `f(x, y)` returns `[dx, dy]`. |
+| `heat(f, ramp?, cell?)` | Color the view by `f(x, y)` in 0..1. Draw it first. `cell` is the cell size in screen pixels; `1` samples every pixel. |
+| `scatter(points, ramp?, size?)` | Dots from `[x, y, value]` points, colored by value. |
 | `bars(list, width?, color?)` | Bar chart from numbers. |
-| `hist(list, bins?)` | Histogram of numbers; returns the counts. |
+| `hist(list, bins?, color?)` | Histogram of numbers; returns the counts. |
 
 Ramps for `heat` and `scatter`: `'viridis'` (default), `'magma'`, `'inferno'`, `'plasma'`, `'cividis'` (color-blind safe), `'turbo'`, `'hot'` and `'gray'` for values from low to high; `'coolwarm'` for values on both sides of a middle (0.5 is neutral); `'vexel'`, the logo gradient. Or pass a function `t => color`.
 
@@ -116,7 +118,7 @@ Ramps for `heat` and `scatter`: `'viridis'` (default), `'magma'`, `'inferno'`, `
 | `random(a?, b?)` | Seeded random: `0..1`, `0..b`, `a..b`, or an item of a list. Same on every re-run. |
 | `seed(n)` | Restart `random` and `gauss` from seed `n` (every run starts from 1). |
 | `gauss(mean?, sd?)` | Seeded normally distributed number (default mean 0, sd 1). |
-| `once(key?, fn)` | Call `fn` the first time, then return its cached result on later frames and re-runs. |
+| `once(fn, key?)` | Call `fn` the first time, then return its cached result on later frames and re-runs. |
 
 **Interaction and overlays**
 
@@ -127,10 +129,10 @@ Ramps for `heat` and `scatter`: `'viridis'` (default), `'magma'`, `'inferno'`, `
 | `select(name, options, value?)` | Chooser; returns the chosen option. |
 | `button(name)` | Button; true for the one frame after it is clicked. |
 | `every(seconds, fn?, key?)` | In `animate`: true once every `seconds`, and calls `fn` when it is. |
-| `drag(id, x, y, r?, color?)` | Draggable handle; returns its `[x, y]`, which survives re-runs and edits. |
-| `lockView(options?)` | Stop the user panning and zooming; `{ pan: false }` or `{ zoom: false }` keeps one of them. |
+| `drag(id, x, y, r?, color?)` | Draggable handle; returns its `[x, y]`, which survives re-runs and edits. `r` is in screen pixels. |
+| `lockView(pan?, zoom?)` | Stop the user panning and/or zooming (both locked by default); `lockView(true, false)` locks only pan. |
 | `key(name)` | True while a key is held, e.g. `'ArrowLeft'`, `'a'`, `'Space'`. |
-| `hover(x, y, r)` | True while the pointer is within `r` of a point. |
+| `hover(x, y, r)` | True while the pointer is within `r` world units of a point. |
 | `hud(...lines)` | Text in the top-left corner for this frame. |
 | `log(...values)` | Print to the console panel under the editor (also catches `console.log`, `warn`, `error`). |
 
@@ -143,6 +145,8 @@ Sliders, toggles, selects, buttons and `hud` are drawn in screen pixels on top o
 | `Cmd/Ctrl + Enter` | Run now |
 | Wheel / trackpad scroll | Pan |
 | Middle or right drag, `Space` + drag | Pan |
+| `Alt`/`Option` + drag | Zoom to the selected area (`Esc` cancels) |
+| `Alt`/`Option` + click | Zoom out 2x around the point |
 | Pinch / `Ctrl` + wheel | Zoom at the cursor |
 | `+` / `-` | Zoom in / out |
 | `Ctrl + Space` | Autocomplete |

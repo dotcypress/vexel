@@ -29,8 +29,8 @@ clear('#282c34')
 grid()
 axes()
 
-point(-200, 90, 14, palette(0))
-points([[-175, 95], [-155, 80], [-135, 92]], 8, palette(1))
+point(-200, 90, palette(0), 14)
+points([[-175, 95], [-155, 80], [-135, 92]], palette(1), 8)
 line(-210, 50, -130, 30, palette(2), 3)
 polyline([[-210, 0], [-185, -30], [-160, 0], [-135, -30]], palette(3), 3)
 curve(-210, -80, -170, -10, -130, -80, palette(4), 3)
@@ -232,9 +232,9 @@ animate((t) => {
   clear('#282c34')
   grid(25, null, 100)
   plotPolar((a) => R * cos(n * a), 'rgba(255, 255, 255, 0.12)', px(1))
-  plotParam(x, y, 0, 2 * PI * d, palette(5), px(2.5))
-  trail('dot', x(a), y(a), 60, 'white')
-  point(x(a), y(a), 9, 'white')
+  plotParam(x, y, palette(5), px(2.5), 0, 2 * PI * d)
+  trail('dot', x(a), y(a), 'white', 60)
+  point(x(a), y(a), 'white', 9)
 })
 `
 	},
@@ -257,9 +257,9 @@ animate((t) => {
   clear('#282c34')
   grid(20, null, 100)
   axes()
-  plotParam(x, y, 0, 2 * PI, hsl(t * 20, 80, 70, 0.6), px(1.5))
-  trail('dot', x(t), y(t), 120, palette(1))
-  point(x(t), y(t), 10, 'white')
+  plotParam(x, y, hsl(t * 20, 80, 70, 0.6), px(1.5), 0, 2 * PI)
+  trail('dot', x(t), y(t), palette(1), 120)
+  point(x(t), y(t), 'white', 10)
 })
 `
 	},
@@ -290,14 +290,14 @@ animate((t, dt) => {
 
   clear('#1d2027')
   circle(0, 0, R, false, 'rgba(255, 255, 255, 0.2)', px(1))
-  plotParam(penX, penY, 0, min(s, period), hsl(s * 15, 85, 65), px(2))
+  plotParam(penX, penY, hsl(s * 15, 85, 65), px(2), 0, min(s, period))
 
   if (s < period) {
     const wheelX = (R - r) * cos(s)
     const wheelY = (R - r) * sin(s)
     circle(wheelX, wheelY, r, false, 'rgba(255, 255, 255, 0.5)', px(1))
     line(wheelX, wheelY, penX(s), penY(s), 'white', px(1))
-    point(penX(s), penY(s), 8, 'white')
+    point(penX(s), penY(s), 'white', 8)
   }
 })
 `
@@ -409,7 +409,7 @@ animate((t, dt) => {
   const y2 = y1 - L * cos(a2)
 
   clear('#1d2027')
-  trail('tip', x2, y2, 400, palette(5))
+  trail('tip', x2, y2, palette(5), 400)
   line(0, 0, x1, y1, 'white', 3)
   line(x1, y1, x2, y2, 'white', 3)
   circle(0, 0, 4, '#aab0c4')
@@ -447,16 +447,16 @@ function bezier(t) {
 clear('#282c34')
 grid(20, null, 100)
 polyline(P, 'rgba(255, 255, 255, 0.25)', px(1))
-plotParam((s) => bezier(s)[0], (s) => bezier(s)[1], 0, 1, 'white', px(2.5))
+plotParam((s) => bezier(s)[0], (s) => bezier(s)[1], 'white', px(2.5), 0, 1)
 
 let pts = reduce(P, t)
 for (let level = 0; pts.length > 1; level++) {
   polyline(pts, hsl(200 + level * 50, 80, 65), px(1.5))
-  points(pts, 7, hsl(200 + level * 50, 80, 65))
+  points(pts, hsl(200 + level * 50, 80, 65), 7)
   pts = reduce(pts, t)
 }
 const [x, y] = pts[0]
-point(x, y, 12, palette(5))
+point(x, y, palette(5), 12)
 
 fit(-200, -120, 400, 260)
 `
@@ -494,7 +494,7 @@ circle(O[0], O[1], hypot(A[0] - O[0], A[1] - O[1]), false, palette(3), px(1))
 line(O[0], O[1], H[0], H[1], 'rgba(255, 255, 255, 0.5)', px(1))
 
 for (const [name, [x, y], color] of [['G', G, palette(5)], ['O', O, palette(3)], ['H', H, palette(6)]]) {
-  point(x, y, px(9), color)
+  point(x, y, color, px(9))
   text(name, x + px(8), y + px(8), color, px(13))
 }
 
@@ -534,8 +534,8 @@ animate((t, dt) => {
       p.om += accel(p.th, p.om) * h
       p.th += p.om * h
     }
-    trail('p' + i, p.th * S, p.om * S, 150, palette(i + 1))
-    point(p.th * S, p.om * S, 8, palette(i + 1))
+    trail('p' + i, p.th * S, p.om * S, palette(i + 1), 150)
+    point(p.th * S, p.om * S, palette(i + 1), 8)
   })
 })
 `
@@ -589,6 +589,7 @@ animate((t, dt) => {
 		code: `// The Mandelbrot set. Pan and zoom to explore.
 const ramp = select('ramp', ['magma', 'inferno', 'plasma', 'turbo', 'viridis', 'cividis', 'hot', 'vexel', 'gray'])
 const maxIter = slider('iterations', 20, 300, 80, 1)
+const cell = slider('cell size', 1, 12, 3, 1)
 const scale = 200
 
 // Smooth escape time of c = cr + ci i, or maxIter if it never escapes.
@@ -611,7 +612,7 @@ clear('#282c34')
 heat((x, y) => {
   const n = escape(x / scale - 0.5, y / scale)
   return n >= maxIter ? 0 : sqrt(max(0, n) / maxIter)
-}, ramp)
+}, ramp, cell)
 `
 	},
 	{
@@ -690,7 +691,7 @@ clear('#282c34')
 grid(10, null, 50)
 axes()
 
-hist(samples, bins)
+hist(samples, bins, palette(0))
 text('600 samples', 100, 120, 'white', 10, 'center')
 
 ctx.save()
@@ -719,7 +720,7 @@ const stars = range(count).map((i) => {
 })
 
 clear('#14161b')
-scatter(stars, 3, ramp)
+scatter(stars, ramp, 3)
 fit(...bounds(stars))
 `
 	},
@@ -890,10 +891,10 @@ for (let w = 0; w < walkers; w++) {
     path.push([x, y])
   }
   polyline(path, hsl(w * 30, 80, 65, 0.7), px(1.5))
-  point(x, y, 8, hsl(w * 30, 80, 65))
+  point(x, y, hsl(w * 30, 80, 65), 8)
 }
 
-point(0, 0, 10, 'white')
+point(0, 0, 'white', 10)
 fit(-250, -250, 500, 500)
 `
 	},
@@ -998,7 +999,7 @@ animate((t, dt) => {
     const spin = abs(cos(t * 3 + i))
     ellipse(cx, cy, 8 * spin + 1, 8, hsl(45, 95, 55), hsl(35, 90, 40), px(1.5))
   })
-  trail('me', x, y, 60, palette(1))
+  trail('me', x, y, palette(1), 60)
   circle(x, y, 12, palette(0), 'white', px(2))
   hud('score: ' + score)
 })
