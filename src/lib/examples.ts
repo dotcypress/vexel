@@ -106,13 +106,17 @@ function addBall(x, y) {
   balls.push({ x, y, vx: random(-150, 150), vy: random(0, 200), r: random(8, 20), color: palette(balls.length) })
 }
 
-for (let i = 0; i < 8; i++) addBall(random(-250, 250), random(0, 150))
+for (let i = 0; i < 8; i++) {
+  addBall(random(-250, 250), random(0, 150))
+}
 fit(-W, -H, 2 * W, 2 * H)
 
 animate((t, dt) => {
   const gravity = slider('gravity', 0, 1000, 500)
   const bounce = slider('bounce', 0.5, 1, 0.9, 0.01)
-  if (mouse.clicked) addBall(mouse.x, mouse.y)
+  if (mouse.clicked) {
+    addBall(mouse.x, mouse.y)
+  }
 
   dt = min(dt, 0.05)
   for (const b of balls) {
@@ -131,7 +135,47 @@ animate((t, dt) => {
 
   clear('#1d2027')
   rect(-W, -H, 2 * W, 2 * H, false, '#5b6cf0', px(2))
-  for (const b of balls) circle(b.x, b.y, b.r, b.color)
+  for (const b of balls) {
+    circle(b.x, b.y, b.r, b.color)
+  }
+})
+`
+	},
+	{
+		id: 'solar',
+		title: 'Solar system',
+		group: 'Basics',
+		description: 'circle, text, toggle: planets on their orbits.',
+		code: `// Planets on circular orbits. Inner planets go around faster.
+const planets = [
+  { name: 'Mercury', r: 40, size: 4, color: '#b0a89f' },
+  { name: 'Venus', r: 60, size: 7, color: '#e8c27a' },
+  { name: 'Earth', r: 85, size: 7, color: '#5b9cf0' },
+  { name: 'Mars', r: 110, size: 5, color: '#e2683c' },
+  { name: 'Jupiter', r: 150, size: 14, color: '#d9a066' },
+  { name: 'Saturn', r: 195, size: 12, color: '#e8d08f' }
+]
+let time = 0
+
+fit(-220, -220, 440, 440)
+
+animate((t, dt) => {
+  const speed = slider('speed', 0, 5, 1, 0.1)
+  const labels = toggle('labels', true)
+  time += speed * dt
+
+  clear('#0d0f14')
+  circle(0, 0, 18, '#ffcc44')
+  planets.forEach((p, i) => {
+    const angle = i * 2.4 + (time * 200) / p.r ** 1.5
+    const x = p.r * cos(angle)
+    const y = p.r * sin(angle)
+    circle(0, 0, p.r, false, 'rgba(255, 255, 255, 0.12)', px(1))
+    circle(x, y, p.size, p.color)
+    if (labels) {
+      text(p.name, x + p.size + 4, y, '#aab0c4', 10)
+    }
+  })
 })
 `
 	},
@@ -149,7 +193,9 @@ const curves = [
   ['sin', (x) => amp * sin(x / freq), palette(0)],
   ['1000 / x', (x) => 1000 / x, palette(2)]
 ]
-if (showCos) curves.push(['cos', (x) => amp * cos(x / freq), palette(1)])
+if (showCos) {
+  curves.push(['cos', (x) => amp * cos(x / freq), palette(1)])
+}
 
 clear('#282c34')
 grid(10, null, 50)
@@ -284,7 +330,9 @@ animate((t) => {
   }
 
   wave.unshift(y)
-  if (wave.length > 200) wave.pop()
+  if (wave.length > 200) {
+    wave.pop()
+  }
 
   line(x, y, 110, y, palette(3), px(1))
   polyline(wave.map((v, i) => [110 + i, v]), palette(2), px(2))
@@ -309,6 +357,108 @@ animate((t) => {
 
   heat((x, y) => 0.5 + 0.25 * (wave(a, x, y) + wave(b, x, y)), 'coolwarm')
 })
+`
+	},
+	{
+		id: 'pendulum',
+		title: 'Double pendulum',
+		group: 'Math',
+		description: 'trail, button: two linked arms going chaotic.',
+		code: `// A double pendulum: two linked arms whose motion quickly turns chaotic.
+const L = 100
+const g = 9.81
+let a1, a2, w1, w2
+
+function restart() {
+  a1 = PI / 2 + random(-0.2, 0.2)
+  a2 = PI / 2 + random(-0.2, 0.2)
+  w1 = 0
+  w2 = 0
+}
+
+// Angular accelerations for equal masses and arm lengths.
+function accel(a1, a2, w1, w2) {
+  const d = a1 - a2
+  const den = 3 - cos(2 * d)
+  return [
+    (-3 * g * sin(a1) - g * sin(a1 - 2 * a2) - 2 * sin(d) * (w2 * w2 + w1 * w1 * cos(d))) / den,
+    (2 * sin(d) * (2 * w1 * w1 + 2 * g * cos(a1) + w2 * w2 * cos(d))) / den
+  ]
+}
+
+restart()
+fit(-230, -230, 460, 460)
+
+animate((t, dt) => {
+  if (button('restart')) {
+    restart()
+  }
+
+  const h = min(dt, 0.05) / 20
+  for (let i = 0; i < 20; i++) {
+    const [e1, e2] = accel(a1, a2, w1, w2)
+    w1 += e1 * h
+    w2 += e2 * h
+    a1 += w1 * h
+    a2 += w2 * h
+  }
+
+  const x1 = L * sin(a1)
+  const y1 = -L * cos(a1)
+  const x2 = x1 + L * sin(a2)
+  const y2 = y1 - L * cos(a2)
+
+  clear('#1d2027')
+  trail('tip', x2, y2, 400, palette(5))
+  line(0, 0, x1, y1, 'white', 3)
+  line(x1, y1, x2, y2, 'white', 3)
+  circle(0, 0, 4, '#aab0c4')
+  circle(x1, y1, 10, palette(0))
+  circle(x2, y2, 10, palette(5))
+})
+`
+	},
+	{
+		id: 'bezier',
+		title: 'Bezier curve',
+		group: 'Math',
+		description: 'drag, plotParam, lerp: drag the control points.',
+		code: `// A cubic Bezier curve. Drag the control points; move the slider to see how
+// repeated in-between points find the point on the curve.
+const P = [
+  drag('p0', -150, -60, 8, palette(0)),
+  drag('p1', -80, 90, 8, palette(1)),
+  drag('p2', 80, 90, 8, palette(2)),
+  drag('p3', 150, -60, 8, palette(3))
+]
+const t = slider('t', 0, 1, 0.4, 0.01)
+
+const between = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t)]
+const reduce = (pts, t) => pts.slice(1).map((p, i) => between(pts[i], p, t))
+
+function bezier(t) {
+  let pts = P
+  while (pts.length > 1) {
+    pts = reduce(pts, t)
+  }
+  return pts[0]
+}
+
+clear('#282c34')
+grid(20, null, 100)
+polyline(P, 'rgba(255, 255, 255, 0.25)', px(1))
+plotParam((s) => bezier(s)[0], (s) => bezier(s)[1], 0, 1, 'white', px(2.5))
+
+let pts = reduce(P, t)
+for (let level = 0; pts.length > 1; level++) {
+  polyline(pts, hsl(200 + level * 50, 80, 65), px(1.5))
+  points(pts, 7, hsl(200 + level * 50, 80, 65))
+  pts = reduce(pts, t)
+}
+const [x, y] = pts[0]
+point(x, y, 12, palette(5))
+
+fit(-200, -120, 400, 260)
 `
 	},
 	{
@@ -412,7 +562,9 @@ animate((t, dt) => {
   const flow = (x, y) => [40 * sin(y / 50 + t / 2), 40 * cos(x / 50 - t / 2)]
 
   clear('#1d2027')
-  if (arrows) field(flow, 30, 'rgba(91, 108, 240, 0.5)')
+  if (arrows) {
+    field(flow, 30, 'rgba(91, 108, 240, 0.5)')
+  }
 
   for (const p of particles) {
     const [vx, vy] = flow(p.x, p.y)
@@ -422,7 +574,9 @@ animate((t, dt) => {
     p.x += vx * min(dt, 0.05)
     p.y += vy * min(dt, 0.05)
     p.life -= dt
-    if (p.life < 0 || outside(p)) spawn(p)
+    if (p.life < 0 || outside(p)) {
+      spawn(p)
+    }
   }
 })
 `
@@ -444,7 +598,9 @@ function escape(cr, ci) {
   for (let n = 0; n < maxIter; n++) {
     const zr2 = zr * zr
     const zi2 = zi * zi
-    if (zr2 + zi2 > 256) return n + 1 - log2(Math.log(zr2 + zi2) / 2)
+    if (zr2 + zi2 > 256) {
+      return n + 1 - log2(Math.log(zr2 + zi2) / 2)
+    }
     zi = 2 * zr * zi + ci
     zr = zr2 - zi2 + cr
   }
@@ -568,6 +724,115 @@ fit(...bounds(stars))
 `
 	},
 	{
+		id: 'donut',
+		title: 'Donut chart',
+		group: 'Data',
+		description: 'poly, linspace, text: slices that pop out on hover.',
+		code: `// A donut chart. Hover a slice to pull it out.
+const data = [
+  ['Rent', 1200],
+  ['Food', 450],
+  ['Transport', 180],
+  ['Fun', 220],
+  ['Savings', 500]
+]
+const total = data.reduce((sum, [label, value]) => sum + value, 0)
+
+// Turns go clockwise from the top: 0 is 12 o'clock, 0.25 is 3 o'clock.
+const angle = (turn) => PI / 2 - turn * 2 * PI
+
+function slice(from, to, inner, outer, dx, dy) {
+  const ring = (r, a, b) =>
+    linspace(a, b, 40).map((turn) => [dx + r * cos(angle(turn)), dy + r * sin(angle(turn))])
+  return [...ring(outer, from, to), ...ring(inner, to, from)]
+}
+
+fit(-220, -150, 440, 300)
+
+animate(() => {
+  const mouseTurn = (angle(0) - atan2(mouse.y, mouse.x)) / (2 * PI)
+  const pointerTurn = mouseTurn - floor(mouseTurn)
+  const pointerR = hypot(mouse.x, mouse.y)
+
+  clear('#282c34')
+  let from = 0
+  data.forEach(([label, value], i) => {
+    const to = from + value / total
+    const hovered = pointerR > 60 && pointerR < 110 && pointerTurn >= from && pointerTurn < to
+    const mid = angle((from + to) / 2)
+    const pop = hovered ? 10 : 0
+
+    poly(slice(from, to, 60, 110, pop * cos(mid), pop * sin(mid)), palette(i), '#282c34', px(2))
+    const percent = round((value / total) * 100) + '%'
+    text(label + ' ' + percent, 130 * cos(mid), 130 * sin(mid), hovered ? 'white' : '#aab0c4', 12, cos(mid) >= 0 ? 'left' : 'right')
+    if (hovered) {
+      text(value, 0, 0, 'white', 22, 'center')
+    }
+    from = to
+  })
+})
+`
+	},
+	{
+		id: 'sort',
+		title: 'Bubble sort',
+		group: 'Data',
+		description: 'bars, button, random: watch a list get sorted.',
+		code: `// Bubble sort: compare neighbors and swap them until every bar is in order.
+const N = 40
+let values, pass, j, done
+
+function shuffle() {
+  values = range(N).map(() => round(random(5, 100)))
+  pass = 0
+  j = 0
+  done = false
+}
+
+function compare() {
+  if (done) {
+    return
+  }
+  if (values[j] > values[j + 1]) {
+    [values[j], values[j + 1]] = [values[j + 1], values[j]]
+  }
+  j++
+  if (j >= N - 1 - pass) {
+    j = 0
+    pass++
+  }
+  done = pass >= N - 1
+}
+
+function barColor(i) {
+  if (done || i >= N - pass) {
+    return palette(2)
+  }
+  if (i === j || i === j + 1) {
+    return palette(3)
+  }
+  return '#566079'
+}
+
+shuffle()
+fit(-10, -15, N * 10 + 200, 130)
+
+animate(() => {
+  const speed = slider('steps per frame', 1, 50, 5, 1)
+  if (button('shuffle')) {
+    shuffle()
+  }
+  for (let k = 0; k < speed; k++) {
+    compare()
+  }
+
+  clear('#282c34')
+  bars(values, 10, barColor)
+  text(done ? 'sorted!' : 'pass ' + (pass + 1), 0, -8, '#aab0c4', 10)
+})
+`
+	},
+	{
 		id: 'tree',
 		title: 'Fractal tree',
 		group: 'Generative',
@@ -586,7 +851,9 @@ animate((t) => {
     const x2 = x + length * cos(angle)
     const y2 = y + length * sin(angle)
     line(x, y, x2, y2, hsl(lerp(30, 120, k), 60, lerp(30, 55, k)), max(1, (depth - level) * 1.5))
-    if (level >= depth) return
+    if (level >= depth) {
+      return
+    }
 
     const turn = (spread * PI) / 180
     const sway = wind * 0.05 * sin(t * 1.5 + level)
@@ -631,6 +898,67 @@ fit(-250, -250, 500, 500)
 `
 	},
 	{
+		id: 'stars',
+		title: 'Starfield',
+		group: 'Generative',
+		description: 'line, random: flying through space.',
+		code: `// Flying through a field of stars.
+const stars = range(400).map(() => ({ x: random(-1, 1), y: random(-1, 1), z: random() }))
+const project = (s, z) => [(s.x / z) * 150, (s.y / z) * 150]
+
+fit(-200, -150, 400, 300)
+
+animate((t, dt) => {
+  const speed = slider('speed', 0, 2, 0.4, 0.01)
+
+  clear('#05060a')
+  for (const s of stars) {
+    const [x0, y0] = project(s, s.z)
+    s.z -= speed * dt
+    if (s.z < 0.02) {
+      Object.assign(s, { x: random(-1, 1), y: random(-1, 1), z: 1 })
+      continue
+    }
+    const [x1, y1] = project(s, s.z)
+    const near = 1 - s.z
+    line(x0, y0, x1, y1, hsl(220, 60, 50 + near * 45, near), px(0.5 + near * 3))
+  }
+})
+`
+	},
+	{
+		id: 'koch',
+		title: 'Koch snowflake',
+		group: 'Generative',
+		description: 'poly, recursion: a fractal edge.',
+		code: `// The Koch snowflake: replace the middle third of every edge with a spike, again and again.
+const depth = slider('depth', 0, 6, 4, 1)
+
+const rotate = ([x, y], a) => [x * cos(a) - y * sin(a), x * sin(a) + y * cos(a)]
+
+// Points from a toward b, not including b.
+function koch(a, b, level) {
+  if (level === 0) {
+    return [a]
+  }
+  const d = [(b[0] - a[0]) / 3, (b[1] - a[1]) / 3]
+  const p1 = [a[0] + d[0], a[1] + d[1]]
+  const p3 = [a[0] + 2 * d[0], a[1] + 2 * d[1]]
+  const spike = rotate(d, -PI / 3)
+  const p2 = [p1[0] + spike[0], p1[1] + spike[1]]
+  return [...koch(a, p1, level - 1), ...koch(p1, p2, level - 1), ...koch(p2, p3, level - 1), ...koch(p3, b, level - 1)]
+}
+
+const corners = [90, 210, 330].map((deg) => [120 * cos((deg * PI) / 180), 120 * sin((deg * PI) / 180)])
+const outline = corners.flatMap((c, i) => koch(c, corners[(i + 1) % 3], depth))
+
+clear('#1d2027')
+poly(outline, 'rgba(91, 108, 240, 0.25)', '#9fb4ff', px(1.5))
+hud(outline.length + ' edges')
+fit(-160, -130, 320, 300)
+`
+	},
+	{
 		id: 'keys',
 		title: 'Collect the coins',
 		group: 'Interactive',
@@ -656,7 +984,9 @@ animate((t, dt) => {
   y = clamp(y + axis(key('ArrowUp') || key('w'), key('ArrowDown') || key('s')) * step, -190, 190)
 
   coins = coins.map((coin) => {
-    if (hypot(coin[0] - x, coin[1] - y) > 20) return coin
+    if (hypot(coin[0] - x, coin[1] - y) > 20) {
+      return coin
+    }
     score++
     return place()
   })
@@ -701,7 +1031,9 @@ function neighbors(c) {
   for (let dy = -1; dy <= 1; dy++) {
     for (let dx = -1; dx <= 1; dx++) {
       const n = (dx || dy) && at(c.x + dx, c.y + dy)
-      if (n) out.push(n)
+      if (n) {
+        out.push(n)
+      }
     }
   }
   return out
@@ -717,14 +1049,21 @@ function plant(first) {
 }
 
 function reveal(c) {
-  if (c.open || c.flag) return
+  if (c.open || c.flag) {
+    return
+  }
   c.open = true
-  if (c.mine) over = true
-  else if (c.n === 0) neighbors(c).forEach(reveal)
+  if (c.mine) {
+    over = true
+  } else if (c.n === 0) {
+    neighbors(c).forEach(reveal)
+  }
 }
 
 function cellColor(c, hovered) {
-  if (c.open || (over && c.mine)) return c.mine ? '#c0392b' : '#353a47'
+  if (c.open || (over && c.mine)) {
+    return c.mine ? '#c0392b' : '#353a47'
+  }
   return c === hovered && !over ? '#6f7a99' : '#566079'
 }
 
@@ -733,14 +1072,20 @@ lockView()
 fit(-S, -S * 1.5, (W + 2) * S + 150, (H + 3) * S)
 
 animate(() => {
-  if (button('new game')) newGame()
+  if (button('new game')) {
+    newGame()
+  }
 
   const hovered = at(floor(mouse.x / S), floor(mouse.y / S))
   if (mouse.clicked && hovered && !over) {
     if (key('f') || key('Shift')) {
-      if (!hovered.open) hovered.flag = !hovered.flag
+      if (!hovered.open) {
+        hovered.flag = !hovered.flag
+      }
     } else {
-      if (!started) plant(hovered)
+      if (!started) {
+        plant(hovered)
+      }
       started = true
       reveal(hovered)
       won = !over && cells.every((c) => c.mine || c.open)
@@ -753,15 +1098,22 @@ animate(() => {
     const X = c.x * S
     const Y = c.y * S
     rect(X + 1, Y + 1, S - 2, S - 2, cellColor(c, hovered))
-    if ((c.open || over) && c.mine) circle(X + S / 2, Y + S / 2, 5, '#14161b')
-    else if (c.open && c.n) text(c.n, X + S / 2, Y + S / 2, COLORS[c.n], 13, 'center')
-    else if (c.flag) poly([[X + 6, Y + 4], [X + 6, Y + 16], [X + 15, Y + 12]], '#ff6b6b')
+    if ((c.open || over) && c.mine) {
+      circle(X + S / 2, Y + S / 2, 5, '#14161b')
+    } else if (c.open && c.n) {
+      text(c.n, X + S / 2, Y + S / 2, COLORS[c.n], 13, 'center')
+    } else if (c.flag) {
+      poly([[X + 6, Y + 4], [X + 6, Y + 16], [X + 15, Y + 12]], '#ff6b6b')
+    }
   }
 
   const flags = cells.filter((c) => c.flag).length
   text('mines left ' + (MINES - flags), 0, -S * 0.8, '#e6e8f0', 12)
-  if (won) text('Cleared!', W * S, -S * 0.8, '#5fd38d', 12, 'right')
-  else if (over) text('Boom! Press new game.', W * S, -S * 0.8, '#ff6b6b', 12, 'right')
+  if (won) {
+    text('Cleared!', W * S, -S * 0.8, '#5fd38d', 12, 'right')
+  } else if (over) {
+    text('Boom! Press new game.', W * S, -S * 0.8, '#ff6b6b', 12, 'right')
+  }
 })
 `
 	},
@@ -784,7 +1136,9 @@ function neighbors(x, y) {
   let n = 0
   for (let dy = -1; dy <= 1; dy++) {
     for (let dx = -1; dx <= 1; dx++) {
-      if ((dx || dy) && alive(x + dx, y + dy)) n++
+      if ((dx || dy) && alive(x + dx, y + dy)) {
+        n++
+      }
     }
   }
   return n
@@ -803,19 +1157,31 @@ fit(-S, -S, W * S + 220, H * S + 2 * S)
 animate(() => {
   const playing = toggle('play', true)
   const speed = slider('steps per second', 1, 30, 10, 1)
-  if (button('step')) step()
-  if (button('randomize')) cells = randomCells()
-  if (button('clear')) cells = cells.map(() => false)
-  if (playing) every(1 / speed, step)
+  if (button('step')) {
+    step()
+  }
+  if (button('randomize')) {
+    cells = randomCells()
+  }
+  if (button('clear')) {
+    cells = cells.map(() => false)
+  }
+  if (playing) {
+    every(1 / speed, step)
+  }
 
   const x = floor(mouse.x / S)
   const y = floor(mouse.y / S)
-  if (mouse.clicked && x >= 0 && y >= 0 && x < W && y < H) cells[y * W + x] = !cells[y * W + x]
+  if (mouse.clicked && x >= 0 && y >= 0 && x < W && y < H) {
+    cells[y * W + x] = !cells[y * W + x]
+  }
 
   clear('#14161b')
   rect(0, 0, W * S, H * S, '#1d2027')
   cells.forEach((on, i) => {
-    if (on) rect((i % W) * S + 0.5, floor(i / W) * S + 0.5, S - 1, S - 1, palette(2))
+    if (on) {
+      rect((i % W) * S + 0.5, floor(i / W) * S + 0.5, S - 1, S - 1, palette(2))
+    }
   })
 })
 `
@@ -837,8 +1203,9 @@ const same = (a, b) => a[0] === b[0] && a[1] === b[1]
 const outside = ([x, y]) => x < 0 || y < 0 || x >= W || y >= H
 
 function placeFood() {
-  do food = [floor(Math.random() * W), floor(Math.random() * H)]
-  while (snake.some((part) => same(part, food)))
+  do {
+    food = [floor(Math.random() * W), floor(Math.random() * H)]
+  } while (snake.some((part) => same(part, food)))
 }
 
 function newGame() {
@@ -851,7 +1218,9 @@ function newGame() {
 }
 
 function step() {
-  if (!same(next, [-dir[0], -dir[1]])) dir = next
+  if (!same(next, [-dir[0], -dir[1]])) {
+    dir = next
+  }
   const head = [snake[0][0] + dir[0], snake[0][1] + dir[1]]
   const grows = same(head, food)
   const body = grows ? snake : snake.slice(0, -1)
@@ -872,12 +1241,22 @@ fit(-S, -S * 2, (W + 2) * S + 160, (H + 3) * S)
 
 animate((t, dt) => {
   const speed = slider('speed', 4, 20, 9, 1)
-  if (over && key('Space')) newGame()
+  if (over && key('Space')) {
+    newGame()
+  }
 
-  if (key('ArrowUp') || key('w')) next = [0, 1]
-  if (key('ArrowDown') || key('s')) next = [0, -1]
-  if (key('ArrowLeft') || key('a')) next = [-1, 0]
-  if (key('ArrowRight') || key('d')) next = [1, 0]
+  if (key('ArrowUp') || key('w')) {
+    next = [0, 1]
+  }
+  if (key('ArrowDown') || key('s')) {
+    next = [0, -1]
+  }
+  if (key('ArrowLeft') || key('a')) {
+    next = [-1, 0]
+  }
+  if (key('ArrowRight') || key('d')) {
+    next = [1, 0]
+  }
 
   timer += min(dt, 0.25)
   while (!over && timer >= 1 / speed) {
@@ -894,7 +1273,81 @@ animate((t, dt) => {
   })
 
   text('score ' + score, 0, -S, '#e6e8f0', 13)
-  if (over) text('Game over! Press Space to play again.', W * S, -S, '#ff6b6b', 13, 'right')
+  if (over) {
+    text('Game over! Press Space to play again.', W * S, -S, '#ff6b6b', 13, 'right')
+  }
+})
+`
+	},
+	{
+		id: 'pong',
+		title: 'Pong',
+		group: 'Interactive',
+		description: 'mouse, lockView: paddle versus computer.',
+		code: `// Pong against the computer. Move your paddle (left) with the mouse.
+const W = 300
+const H = 180
+const PADDLE = 40
+const R = 6
+let ball
+let cpuY = 0
+let you = 0
+let cpu = 0
+
+const clamp = (v, lo, hi) => min(hi, max(lo, v))
+
+function serve(direction) {
+  ball = { x: 0, y: 0, vx: 220 * direction, vy: random(-120, 120) }
+}
+
+function bounceOff(paddleY, x) {
+  if (abs(ball.y - paddleY) > PADDLE + R) {
+    return
+  }
+  ball.x = x
+  ball.vx = clamp(-ball.vx * 1.05, -600, 600)
+  ball.vy += (ball.y - paddleY) * 4
+}
+
+serve(1)
+lockView()
+fit(-W - 20, -H - 40, 2 * W + 40, 2 * H + 60)
+
+animate((t, dt) => {
+  dt = min(dt, 0.05)
+  const youY = clamp(mouse.y, -H + PADDLE, H - PADDLE)
+  cpuY += clamp(ball.y - cpuY, -160 * dt, 160 * dt)
+
+  ball.x += ball.vx * dt
+  ball.y += ball.vy * dt
+  if (abs(ball.y) > H - R) {
+    ball.y = sign(ball.y) * (H - R)
+    ball.vy = -ball.vy
+  }
+  if (ball.vx < 0 && ball.x < -W + 16 + R) {
+    bounceOff(youY, -W + 16 + R)
+  }
+  if (ball.vx > 0 && ball.x > W - 16 - R) {
+    bounceOff(cpuY, W - 16 - R)
+  }
+  if (ball.x < -W - 20) {
+    cpu++
+    serve(1)
+  }
+  if (ball.x > W + 20) {
+    you++
+    serve(-1)
+  }
+
+  clear('#1d2027')
+  rect(-W, -H, 2 * W, 2 * H, false, '#5b6cf0', px(2))
+  for (let y = -H + 10; y < H; y += 20) {
+    line(0, y, 0, y + 10, 'rgba(255, 255, 255, 0.2)', 2)
+  }
+  rect(-W + 8, youY - PADDLE, 8, 2 * PADDLE, palette(0))
+  rect(W - 16, cpuY - PADDLE, 8, 2 * PADDLE, palette(3))
+  circle(ball.x, ball.y, R, 'white')
+  text(you + ' : ' + cpu, 0, -H - 20, 'white', 18, 'center')
 })
 `
 	},
@@ -916,15 +1369,23 @@ animate((t) => {
   const copies = slider('symmetry', 1, 12, 6, 1)
   const mirror = toggle('mirror', true)
   const width = slider('brush', 1, 10, 3, 0.5)
-  if (button('undo')) strokes.pop()
-  if (button('clear')) strokes.length = 0
+  if (button('undo')) {
+    strokes.pop()
+  }
+  if (button('clear')) {
+    strokes.length = 0
+  }
 
   if (mouse.clicked) {
     current = { points: [], hue: (t * 40) % 360 }
     strokes.push(current)
   }
-  if (!mouse.down) current = null
-  if (current) current.points.push([mouse.x, mouse.y])
+  if (!mouse.down) {
+    current = null
+  }
+  if (current) {
+    current.points.push([mouse.x, mouse.y])
+  }
 
   clear('#14161b')
   for (const { points, hue } of strokes) {
@@ -932,7 +1393,9 @@ animate((t) => {
       const a = (k * 2 * PI) / copies
       const color = hsl(hue + k * 8, 85, 65)
       polyline(points.map((p) => rotate(p, a)), color, px(width))
-      if (mirror) polyline(points.map(([x, y]) => rotate([x, -y], a)), color, px(width))
+      if (mirror) {
+        polyline(points.map(([x, y]) => rotate([x, -y], a)), color, px(width))
+      }
     }
   }
 })

@@ -145,8 +145,8 @@ Sliders, toggles, selects, buttons and `hud` are drawn in screen pixels on top o
 | Middle or right drag, `Space` + drag | Pan |
 | Pinch / `Ctrl` + wheel | Zoom at the cursor |
 | `+` / `-` | Zoom in / out |
-| `0` | Reset view |
 | `Ctrl + Space` | Autocomplete |
+| `F1` | Open the help |
 
 ## License
 

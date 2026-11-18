@@ -7,8 +7,6 @@ export const DEFAULT_CODE = `// Sunflower: each seed sits one golden angle past 
 const golden = PI * (3 - sqrt(5))
 let spin = 0
 
-fit(-340, -340, 680, 680)
-
 animate((t, dt) => {
   const speed = slider('speed', 0, 2, 0.14)
   const spread = slider('spread', 5, 20, 10)

@@ -60,6 +60,9 @@
 	});
 
 	function onEdit(value: string) {
+		if (value === code) {
+			return;
+		}
 		code = value;
 		clearTimeout(timer);
 		timer = setTimeout(run, DEBOUNCE_MS);
@@ -104,7 +107,16 @@
 	function endResize() {
 		resizing = false;
 	}
+
+	function onWindowKeyDown(e: KeyboardEvent) {
+		if (e.key === 'F1') {
+			e.preventDefault();
+			helpOpen = true;
+		}
+	}
 </script>
+
+<svelte:window onkeydown={onWindowKeyDown} />
 
 <Help bind:open={helpOpen} onload={loadCode} />
 
@@ -124,7 +136,7 @@
 				<button
 					class="icon"
 					onclick={() => (helpOpen = true)}
-					title="Help: API reference and shortcuts"
+					title="Help: API reference and shortcuts (F1)"
 					aria-label="Help"
 				>
 					<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">

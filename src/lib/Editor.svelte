@@ -18,6 +18,9 @@
 
 	let host: HTMLDivElement;
 	let view: EditorView | undefined;
+	// True while the editor is being updated from `value`, so that change is not reported
+	// back as an edit (which would schedule a second run).
+	let syncing = false;
 
 	onMount(() => {
 		view = new EditorView({
@@ -38,7 +41,9 @@
 					}
 				]),
 				EditorView.updateListener.of((update) => {
-					if (update.docChanged) onchange(update.state.doc.toString());
+					if (update.docChanged && !syncing) {
+						onchange(update.state.doc.toString());
+					}
 				})
 			]
 		});
@@ -48,7 +53,12 @@
 	// Sync external changes (e.g. reset) into the editor.
 	$effect(() => {
 		if (view && value !== view.state.doc.toString()) {
-			view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: value } });
+			syncing = true;
+			try {
+				view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: value } });
+			} finally {
+				syncing = false;
+			}
 		}
 	});
 </script>
