@@ -23,7 +23,7 @@ export const EXAMPLES: Example[] = [
 		id: 'shapes',
 		title: 'Shapes',
 		group: 'Basics',
-		description: 'Every drawing helper once, plus colors and px().',
+		description: 'point, line, circle, rect, poly, text: every drawing helper once.',
 		code: `// Every drawing helper once. Y points up and (0, 0) is the center.
 clear('#282c34')
 grid()
@@ -55,10 +55,91 @@ fit(-230, -145, 480, 270)
 `
 	},
 	{
+		id: 'clock',
+		title: 'Clock',
+		group: 'Basics',
+		description: 'line, circle, text, animate: an analog clock.',
+		code: `// An analog clock showing the current time.
+fit(-130, -130, 260, 260)
+
+function hand(turns, length, color, width) {
+  const a = PI / 2 - turns * 2 * PI
+  line(0, 0, length * cos(a), length * sin(a), color, width)
+}
+
+animate(() => {
+  const now = new Date()
+  const seconds = now.getSeconds() + now.getMilliseconds() / 1000
+  const minutes = now.getMinutes() + seconds / 60
+  const hours = (now.getHours() % 12) + minutes / 60
+
+  clear('#1d2027')
+  circle(0, 0, 110, '#262a35', 'white', 3)
+  for (let i = 0; i < 60; i++) {
+    const a = (i / 60) * 2 * PI
+    const inner = i % 5 ? 100 : 92
+    line(inner * cos(a), inner * sin(a), 106 * cos(a), 106 * sin(a), 'white', i % 5 ? 1 : 3)
+  }
+  for (let n = 1; n <= 12; n++) {
+    const a = PI / 2 - (n / 12) * 2 * PI
+    text(n, 78 * cos(a), 78 * sin(a), '#aab0c4', 14, 'center')
+  }
+
+  hand(hours / 12, 55, 'white', 6)
+  hand(minutes / 60, 85, 'white', 4)
+  hand(seconds / 60, 95, palette(3), 2)
+  circle(0, 0, 5, palette(3))
+})
+`
+	},
+	{
+		id: 'balls',
+		title: 'Bouncing balls',
+		group: 'Basics',
+		description: 'animate, random, mouse.clicked: gravity and bounces.',
+		code: `// Balls bouncing under gravity. Click to add one.
+const W = 300
+const H = 200
+const balls = []
+
+function addBall(x, y) {
+  balls.push({ x, y, vx: random(-150, 150), vy: random(0, 200), r: random(8, 20), color: palette(balls.length) })
+}
+
+for (let i = 0; i < 8; i++) addBall(random(-250, 250), random(0, 150))
+fit(-W, -H, 2 * W, 2 * H)
+
+animate((t, dt) => {
+  const gravity = slider('gravity', 0, 1000, 500)
+  const bounce = slider('bounce', 0.5, 1, 0.9, 0.01)
+  if (mouse.clicked) addBall(mouse.x, mouse.y)
+
+  dt = min(dt, 0.05)
+  for (const b of balls) {
+    b.vy -= gravity * dt
+    b.x += b.vx * dt
+    b.y += b.vy * dt
+    if (b.y - b.r < -H) {
+      b.y = -H + b.r
+      b.vy = abs(b.vy) * bounce
+    }
+    if (abs(b.x) + b.r > W) {
+      b.x = sign(b.x) * (W - b.r)
+      b.vx = -b.vx
+    }
+  }
+
+  clear('#1d2027')
+  rect(-W, -H, 2 * W, 2 * H, false, '#5b6cf0', px(2))
+  for (const b of balls) circle(b.x, b.y, b.r, b.color)
+})
+`
+	},
+	{
 		id: 'plot',
 		title: 'Plot functions',
 		group: 'Math',
-		description: 'plot, slider, toggle, hud: y = f(x) with live controls.',
+		description: 'plot, slider, toggle: y = f(x) with live controls.',
 		code: `// Graphs of y = f(x). Without animate, the sketch re-runs when a control changes.
 const amp = slider('amplitude', 0, 100, 50)
 const freq = slider('frequency', 5, 100, 30, 1)
@@ -172,6 +253,61 @@ animate((t, dt) => {
     line(wheelX, wheelY, penX(s), penY(s), 'white', px(1))
     point(penX(s), penY(s), 8, 'white')
   }
+})
+`
+	},
+	{
+		id: 'fourier',
+		title: 'Fourier series',
+		group: 'Math',
+		description: 'circle, line, polyline: a square wave from circles.',
+		code: `// A square wave built from circles: each one adds the next odd harmonic.
+const R = 70
+const wave = []
+fit(-110, -110, 420, 220)
+
+animate((t) => {
+  const terms = slider('terms', 1, 20, 4, 1)
+
+  clear('#1d2027')
+  let x = 0
+  let y = 0
+  for (let i = 0; i < terms; i++) {
+    const n = 2 * i + 1
+    const r = (4 * R) / (n * PI)
+    const nx = x + r * cos(n * t)
+    const ny = y + r * sin(n * t)
+    circle(x, y, r, false, 'rgba(255, 255, 255, 0.25)', px(1))
+    line(x, y, nx, ny, 'white', px(1))
+    x = nx
+    y = ny
+  }
+
+  wave.unshift(y)
+  if (wave.length > 200) wave.pop()
+
+  line(x, y, 110, y, palette(3), px(1))
+  polyline(wave.map((v, i) => [110 + i, v]), palette(2), px(2))
+})
+`
+	},
+	{
+		id: 'waves',
+		title: 'Wave interference',
+		group: 'Math',
+		description: 'heat, drag: two wave sources you can move.',
+		code: `// Two wave sources interfering. Drag the sources around.
+fit(-120, -90, 240, 180)
+
+animate((t) => {
+  const wavelength = slider('wavelength', 15, 80, 35)
+  const a = drag('a', -40, 0, 8, palette(0))
+  const b = drag('b', 40, 0, 8, palette(1))
+
+  const k = (2 * PI) / wavelength
+  const wave = ([sx, sy], x, y) => sin(k * hypot(x - sx, y - sy) - t * 4)
+
+  heat((x, y) => 0.5 + 0.25 * (wave(a, x, y) + wave(b, x, y)), 'coolwarm')
 })
 `
 	},
@@ -432,6 +568,69 @@ fit(...bounds(stars))
 `
 	},
 	{
+		id: 'tree',
+		title: 'Fractal tree',
+		group: 'Generative',
+		description: 'line, slider: a recursive tree swaying in the wind.',
+		code: `// A fractal tree: every branch splits into two smaller ones.
+fit(-200, -160, 400, 330)
+
+animate((t) => {
+  const depth = slider('depth', 1, 12, 9, 1)
+  const spread = slider('spread', 0, 90, 25, 1)
+  const shrink = slider('shrink', 0.5, 0.85, 0.72, 0.01)
+  const wind = slider('wind', 0, 1, 0.3, 0.01)
+
+  function branch(x, y, angle, length, level) {
+    const k = level / depth
+    const x2 = x + length * cos(angle)
+    const y2 = y + length * sin(angle)
+    line(x, y, x2, y2, hsl(lerp(30, 120, k), 60, lerp(30, 55, k)), max(1, (depth - level) * 1.5))
+    if (level >= depth) return
+
+    const turn = (spread * PI) / 180
+    const sway = wind * 0.05 * sin(t * 1.5 + level)
+    branch(x2, y2, angle + turn + sway, length * shrink, level + 1)
+    branch(x2, y2, angle - turn + sway, length * shrink, level + 1)
+  }
+
+  clear('#1d2027')
+  branch(0, -150, PI / 2, 90, 1)
+})
+`
+	},
+	{
+		id: 'walk',
+		title: 'Random walks',
+		group: 'Generative',
+		description: 'random, seed, polyline: wandering paths.',
+		code: `// Random walks: each step goes the same distance in a random direction.
+const walkers = slider('walkers', 1, 12, 6, 1)
+const steps = slider('steps', 100, 3000, 1000, 100)
+seed(slider('seed', 1, 100, 1, 1))
+
+clear('#14161b')
+grid(50, null, 250)
+
+for (let w = 0; w < walkers; w++) {
+  let x = 0
+  let y = 0
+  const path = [[x, y]]
+  for (let i = 0; i < steps; i++) {
+    const a = random(2 * PI)
+    x += 5 * cos(a)
+    y += 5 * sin(a)
+    path.push([x, y])
+  }
+  polyline(path, hsl(w * 30, 80, 65, 0.7), px(1.5))
+  point(x, y, 8, hsl(w * 30, 80, 65))
+}
+
+point(0, 0, 10, 'white')
+fit(-250, -250, 500, 500)
+`
+	},
+	{
 		id: 'keys',
 		title: 'Collect the coins',
 		group: 'Interactive',
@@ -563,6 +762,61 @@ animate(() => {
   text('mines left ' + (MINES - flags), 0, -S * 0.8, '#e6e8f0', 12)
   if (won) text('Cleared!', W * S, -S * 0.8, '#5fd38d', 12, 'right')
   else if (over) text('Boom! Press new game.', W * S, -S * 0.8, '#ff6b6b', 12, 'right')
+})
+`
+	},
+	{
+		id: 'life',
+		title: 'Game of Life',
+		group: 'Interactive',
+		description: 'every, button, toggle, mouse.clicked: cells that live and die.',
+		code: `// Conway's Game of Life. Click cells to flip them.
+const W = 40
+const H = 26
+const S = 10
+
+const randomCells = () => range(W * H).map(() => random() < 0.25)
+let cells = randomCells()
+
+const alive = (x, y) => cells[((y + H) % H) * W + ((x + W) % W)]
+
+function neighbors(x, y) {
+  let n = 0
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if ((dx || dy) && alive(x + dx, y + dy)) n++
+    }
+  }
+  return n
+}
+
+function step() {
+  cells = cells.map((on, i) => {
+    const n = neighbors(i % W, floor(i / W))
+    return n === 3 || (on && n === 2)
+  })
+}
+
+lockView()
+fit(-S, -S, W * S + 220, H * S + 2 * S)
+
+animate(() => {
+  const playing = toggle('play', true)
+  const speed = slider('steps per second', 1, 30, 10, 1)
+  if (button('step')) step()
+  if (button('randomize')) cells = randomCells()
+  if (button('clear')) cells = cells.map(() => false)
+  if (playing) every(1 / speed, step)
+
+  const x = floor(mouse.x / S)
+  const y = floor(mouse.y / S)
+  if (mouse.clicked && x >= 0 && y >= 0 && x < W && y < H) cells[y * W + x] = !cells[y * W + x]
+
+  clear('#14161b')
+  rect(0, 0, W * S, H * S, '#1d2027')
+  cells.forEach((on, i) => {
+    if (on) rect((i % W) * S + 0.5, floor(i / W) * S + 0.5, S - 1, S - 1, palette(2))
+  })
 })
 `
 	},

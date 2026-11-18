@@ -6,7 +6,8 @@
 	import Console, { type LogEntry, type LogLevel } from '#lib/Console.svelte';
 	import logo from '#lib/assets/logo.svg';
 	import { DEFAULT_CODE } from '../lib/runtime';
-	import { EXAMPLES, EXAMPLE_GROUPS } from '../lib/examples';
+	import { EXAMPLES } from '../lib/examples';
+	import Examples from '../lib/Examples.svelte';
 
 	const STORAGE_KEY = 'vexel:v1';
 	const DEBOUNCE_MS = 350;
@@ -87,13 +88,6 @@
 		run();
 	}
 
-	function loadExample(e: Event) {
-		const select = e.currentTarget as HTMLSelectElement;
-		const example = EXAMPLES.find((x) => x.id === select.value);
-		// Go back to the placeholder so the same example can be picked again.
-		select.value = '';
-		if (example) loadCode(example.code, example.title);
-	}
 
 
 	function startResize(e: PointerEvent) {
@@ -126,21 +120,7 @@
 				<span class="title">vexel</span>
 			</span>
 			<div class="actions">
-				<select
-					class="examples"
-					onchange={loadExample}
-					aria-label="Load an example sketch"
-					title="Load a ready-made sketch"
-				>
-					<option value="" selected disabled>Examples</option>
-					{#each EXAMPLE_GROUPS as group (group)}
-						<optgroup label={group}>
-							{#each EXAMPLES.filter((x) => x.group === group) as example (example.id)}
-								<option value={example.id} title={example.description}>{example.title}</option>
-							{/each}
-						</optgroup>
-					{/each}
-				</select>
+				<Examples onpick={(example) => loadCode(example.code, example.title)} />
 				<button
 					class="icon"
 					onclick={() => (helpOpen = true)}
@@ -249,18 +229,6 @@
 		align-items: center;
 		justify-content: center;
 		padding: 4px 6px;
-	}
-	.examples {
-		padding: 4px 6px;
-		color: var(--text);
-		background: var(--bg);
-		border: 1px solid var(--border);
-		border-radius: 4px;
-		font: inherit;
-		cursor: pointer;
-	}
-	.examples:hover {
-		border-color: var(--accent);
 	}
 	.editor-wrap {
 		flex: 1;
