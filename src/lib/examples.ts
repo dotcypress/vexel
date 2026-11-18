@@ -25,7 +25,7 @@ export const EXAMPLES: Example[] = [
     group: 'Basics',
     description: 'point, line, arrow, bezier, spline, circle, wedge, poly, label, dims: every drawing helper once.',
     code: `// Every drawing helper once. Y points up and (0, 0) is the center.
-clear('#282c34')
+clear()
 grid()
 axes()
 
@@ -82,7 +82,7 @@ animate(() => {
   const minutes = now.getMinutes() + seconds / 60
   const hours = (now.getHours() % 12) + minutes / 60
 
-  clear('#1d2027')
+  clear()
   circle(0, 0, 110, '#262a35', 'white', 3)
   for (let i = 0; i < 60; i++) {
     const a = clockAngle(i / 60)
@@ -141,7 +141,7 @@ animate((t, dt) => {
     }
   }
 
-  clear('#1d2027')
+  clear()
   rect(-W, -H, 2 * W, 2 * H, false, '#5b6cf0', px(2))
   for (const b of balls) {
     circle(b.x, b.y, b.r, b.color)
@@ -172,7 +172,7 @@ animate((t, dt) => {
   const labels = toggle('labels', true)
   time += speed * dt
 
-  clear('#0d0f14')
+  clear()
   circle(0, 0, 18, '#ffcc44')
   planets.forEach((p, i) => {
     const [x, y] = polar(p.r, i * 2.4 + (time * 200) / p.r ** 1.5)
@@ -203,7 +203,7 @@ if (showCos) {
   curves.push(['cos', (x) => amp * cos(x / freq), palette(1)])
 }
 
-clear('#282c34')
+clear()
 grid(10, null, 50)
 axes({ xLabel: 'x', yLabel: 'y' })
 
@@ -234,7 +234,7 @@ animate((t) => {
   const y = (a) => r(a) * sin(a + spin)
   const a = (t * 0.9) % (2 * PI * d)
 
-  clear('#282c34')
+  clear()
   grid(25, null, 100)
   plotPolar((a) => R * cos(n * a), 'rgba(255, 255, 255, 0.12)', px(1))
   plotParam(x, y, palette(5), px(2.5), 0, 2 * PI * d)
@@ -259,7 +259,7 @@ animate((t) => {
   const x = (s) => 120 * sin(a * s)
   const y = (s) => 120 * sin(b * s + t * drift)
 
-  clear('#282c34')
+  clear()
   grid(20, null, 100)
   axes()
   plotParam(x, y, hsl(t * 20, 80, 70, 0.6), px(1.5), 0, 2 * PI)
@@ -284,7 +284,7 @@ animate((t) => {
   const seconds = slider('seconds', 0.5, 4, 2, 0.1)
   const progress = min(1, (t / seconds) % 1.4)   // a short pause at the end of each run
 
-  clear('#282c34')
+  clear()
   rect(0, 0, S, S, false, 'rgba(255, 255, 255, 0.3)', px(1))
   kinds.forEach((kind, i) => {
     const color = palette(i)
@@ -323,7 +323,7 @@ animate((t, dt) => {
   const penX = (u) => (R - r) * cos(u) + d * cos(k * u)
   const penY = (u) => (R - r) * sin(u) - d * sin(k * u)
 
-  clear('#1d2027')
+  clear()
   circle(0, 0, R, false, 'rgba(255, 255, 255, 0.2)', px(1))
   plotParam(penX, penY, hsl(s * 15, 85, 65), px(2), 0, min(s, period))
 
@@ -350,7 +350,7 @@ fit(-110, -110, 420, 220)
 animate((t) => {
   const terms = slider('terms', 1, 20, 4, 1)
 
-  clear('#1d2027')
+  clear()
   let x = 0
   let y = 0
   for (let i = 0; i < terms; i++) {
@@ -447,7 +447,7 @@ animate((t, dt) => {
   const x2 = x1 + L * sin(a2)
   const y2 = y1 - L * cos(a2)
 
-  clear('#1d2027')
+  clear()
   trail('tip', x2, y2, palette(5), 400)
   line(0, 0, x1, y1, 'white', 3)
   line(x1, y1, x2, y2, 'white', 3)
@@ -476,7 +476,7 @@ const t = slider('t', 0, 1, 0.4, 0.01)
 const between = (a, b, t) => add(a, scale(sub(b, a), t))
 const reduce = (pts, t) => pts.slice(1).map((p, i) => between(pts[i], p, t))
 
-clear('#282c34')
+clear()
 grid(20, null, 100)
 polyline(P, { color: 'rgba(255, 255, 255, 0.4)', width: px(1), dash: [4, 4] })
 bezier(...P[0], ...P[1], ...P[2], ...P[3], 'white', px(2.5))
@@ -519,7 +519,7 @@ const G = scale(add(add(A, B), C), 1 / 3)
 const O = circumcenter(A, B, C)
 const H = sub(scale(G, 3), scale(O, 2))
 
-clear('#282c34')
+clear()
 grid(20, null, 100)
 poly([A, B, C], 'rgba(91, 108, 240, 0.15)', 'white', px(2))
 circle(...O, dist(A, O), false, palette(3), px(1))
@@ -553,7 +553,7 @@ animate((t, dt) => {
     particles.push({ th: mouse.x / S, om: mouse.y / S })
   }
 
-  clear('#282c34')
+  clear()
   grid(S / 2, null, S)
   axes({ xLabel: 'theta', yLabel: 'omega', step: S })
   field((x, y) => [(y / S) * 12, accel(x / S, y / S) * 12], 20, 'rgba(91, 108, 240, 0.6)')
@@ -591,7 +591,7 @@ animate((t, dt) => {
   const arrows = toggle('arrows', false)
   const flow = (x, y) => [40 * sin(y / 50 + t / 2), 40 * cos(x / 50 - t / 2)]
 
-  clear('#1d2027')
+  clear()
   if (arrows) {
     field(flow, 30, 'rgba(91, 108, 240, 0.5)')
   }
@@ -638,7 +638,7 @@ function escape(cr, ci) {
   return maxIter
 }
 
-clear('#282c34')
+clear()
 heat((x, y) => {
   const n = escape(x / unit - 0.5, y / unit)
   return n >= maxIter ? 0 : sqrt(max(0, n) / maxIter)
@@ -666,7 +666,7 @@ animate((t) => {
   const strength = (x, y) =>
     blobs.reduce((sum, [bx, by, r]) => sum + (r * r) / ((x - bx) ** 2 + (y - by) ** 2 + 1), 0)
 
-  clear('#282c34')
+  clear()
   heat((x, y) => min(1, strength(x, y) / 3), ramp)
   contour(strength, level, 'white', px(2))
   contour(strength, level * 2, 'rgba(255, 255, 255, 0.4)', px(1))
@@ -687,7 +687,7 @@ const data = grid2d(cols, rows, (c, r) => [c, r, round(50 + 40 * sin(c / 2.2) * 
 const values = data.map(([c, r, v]) => v)
 const shade = normalize(values)
 
-clear('#282c34')
+clear()
 fit(0, 0, cols * cell, rows * cell)
 
 let hovered = null
@@ -719,7 +719,7 @@ const bins = slider('bins', 5, 40, 20, 1)
 const samples = range(600).map(() => gauss(100, 30))
 const sales = [30, 80, 55, 95, 60]
 
-clear('#282c34')
+clear()
 grid(10, null, 50)
 axes()
 
@@ -751,7 +751,7 @@ const stars = range(count).map((i) => {
   return [cos(a) * r + gauss(0, 6), sin(a) * r + gauss(0, 6), 1 - r / 200]
 })
 
-clear('#14161b')
+clear()
 scatter(stars, ramp, 3)
 fit(...bounds(stars))
 `
@@ -789,7 +789,7 @@ const pts = rows
   .filter((r) => typeof r[xCol] === 'number' && typeof r[yCol] === 'number')
   .map((r) => [r[xCol], r[yCol]])
 
-clear('#282c34')
+clear()
 axes({ xLabel: xCol, yLabel: yCol })
 if (style === 'line') {
   polyline(pts, palette(0), px(2))
@@ -830,7 +830,7 @@ animate(() => {
   const pointerTurn = mouseTurn - floor(mouseTurn)
   const pointerR = len([mouse.x, mouse.y])
 
-  clear('#282c34')
+  clear()
   let from = 0
   data.forEach(([label, value], i) => {
     const to = from + value / total
@@ -902,7 +902,7 @@ animate(() => {
     compare()
   }
 
-  clear('#282c34')
+  clear()
   bars(values, 10, barColor)
   text(done ? 'sorted!' : 'pass ' + (pass + 1), 0, -8, '#aab0c4', 10)
 })
@@ -936,7 +936,7 @@ animate((t) => {
     branch(x2, y2, angle - turn + sway, length * shrink, level + 1)
   }
 
-  clear('#1d2027')
+  clear()
   branch(0, -150, PI / 2, 90, 1)
 })
 `
@@ -994,7 +994,7 @@ const walkers = slider('walkers', 1, 12, 6, 1)
 const steps = slider('steps', 100, 3000, 1000, 100)
 seed(slider('seed', 1, 100, 1, 1))
 
-clear('#14161b')
+clear()
 grid(50, null, 250)
 
 for (let w = 0; w < walkers; w++) {
@@ -1026,7 +1026,7 @@ fit(-200, -150, 400, 300)
 animate((t, dt) => {
   const speed = slider('speed', 0, 2, 0.4, 0.01)
 
-  clear('#05060a')
+  clear()
   for (const s of stars) {
     const [x0, y0] = project(s, s.z)
     s.z -= speed * dt
@@ -1064,7 +1064,7 @@ function koch(a, b, level) {
 const corners = [90, 210, 330].map((deg) => polar(120, (deg * PI) / 180))
 const outline = corners.flatMap((c, i) => koch(c, corners[(i + 1) % 3], depth))
 
-clear('#1d2027')
+clear()
 poly(outline, 'rgba(91, 108, 240, 0.25)', '#9fb4ff', px(1.5))
 hud(outline.length + ' edges')
 fit(-160, -130, 320, 300)
@@ -1102,7 +1102,7 @@ animate((t, dt) => {
     return place()
   })
 
-  clear('#282c34')
+  clear()
   grid(20, null, 100)
   rect(-300, -200, 600, 400, false, 'rgba(255, 255, 255, 0.4)', px(2))
   coins.forEach(([cx, cy], i) => {
@@ -1204,7 +1204,7 @@ animate(() => {
     }
   }
 
-  clear('#1d2027')
+  clear()
   for (const c of cells) {
     const X = c.x * S
     const Y = c.y * S
@@ -1287,7 +1287,7 @@ animate(() => {
     cells[y * W + x] = !cells[y * W + x]
   }
 
-  clear('#14161b')
+  clear()
   rect(0, 0, W * S, H * S, '#1d2027')
   cells.forEach((on, i) => {
     if (on) {
@@ -1375,7 +1375,7 @@ animate((t, dt) => {
     move()
   }
 
-  clear('#1d2027')
+  clear()
   rect(0, 0, W * S, H * S, '#262a35', '#5b6cf0', px(2))
   circle(food[0] * S + S / 2, food[1] * S + S / 2, 6 + sin(t * 8), '#ff6b6b')
   snake.forEach(([x, y], i) => {
@@ -1448,7 +1448,7 @@ animate((t, dt) => {
     serve(-1)
   }
 
-  clear('#1d2027')
+  clear()
   rect(-W, -H, 2 * W, 2 * H, false, '#5b6cf0', px(2))
   for (let y = -H + 10; y < H; y += 20) {
     line(0, y, 0, y + 10, 'rgba(255, 255, 255, 0.2)', 2)
@@ -1497,7 +1497,7 @@ animate((t) => {
     current.points.push([mouse.x, mouse.y])
   }
 
-  clear('#14161b')
+  clear()
   for (const { points, hue } of strokes) {
     for (let k = 0; k < copies; k++) {
       const a = (k * 2 * PI) / copies
@@ -1522,7 +1522,7 @@ const second = swatch('second', 6)
 const opacity = slider('opacity', 0, 1, 0.6, 0.01)
 const [dx, dy] = slider2d('offset', -80, 80, [50, 0])
 
-clear('#282c34')
+clear()
 
 // A strip of steps from the first color to the second.
 for (let i = 0; i <= 10; i++) {

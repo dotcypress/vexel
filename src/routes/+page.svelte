@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import Editor from '#lib/Editor.svelte';
+  import Editor, { type SketchError } from '#lib/Editor.svelte';
   import Preview from '#lib/Preview.svelte';
   import Help from '#lib/Help.svelte';
   import Console, { type LogEntry, type LogLevel } from '#lib/Console.svelte';
@@ -17,7 +17,7 @@
   let runId = $state(0);
 
 
-  let error = $state<string | null>(null);
+  let error = $state<SketchError | null>(null);
   let logs = $state<LogEntry[]>([]);
   let consoleOpen = $state(false);
 
@@ -154,11 +154,11 @@
       </div>
     </header>
     <div class="editor-wrap">
-      <Editor value={code} onchange={onEdit} onrun={run} />
+      <Editor value={code} onchange={onEdit} onrun={run} {error} />
     </div>
     <Console entries={logs} bind:open={consoleOpen} onclear={() => (logs = [])} />
     {#if error}
-      <pre class="error" role="alert">{error}</pre>
+      <pre class="error" role="alert">{error.line ? 'Line ' + error.line + ': ' : ''}{error.message}</pre>
     {/if}
   </section>
 
@@ -177,7 +177,7 @@
     <!-- Wait for the saved code: starting the default sketch and then replacing it
          right away raced, leaving a stale or empty preview after a refresh. -->
     {#if loaded}
-      <Preview code={appliedCode} {runId} onerror={(m) => (error = m)} {onlog} onreset={() => (logs = [])} />
+      <Preview code={appliedCode} {runId} onerror={(e) => (error = e)} {onlog} onreset={() => (logs = [])} />
     {/if}
   </section>
 </div>

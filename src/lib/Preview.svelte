@@ -2,6 +2,7 @@
   import { onMount, untrack } from 'svelte';
   import { buildPreviewDoc, MAX_ZOOM, MIN_ZOOM, PROJECT_URL } from './runtime';
   import type { LogLevel } from './Console.svelte';
+  import type { SketchError } from './Editor.svelte';
 
   let {
     code,
@@ -12,7 +13,8 @@
   }: {
     code: string;
     runId: number;
-    onerror: (message: string | null) => void;
+    /** The sketch stopped on an error (with its line in the code, when known), or recovered. */
+    onerror: (error: SketchError | null) => void;
     /** Lines printed by log() or console.* in the sketch. */
     onlog: (entries: { level: LogLevel; text: string }[]) => void;
     /** A new run is starting; previous output is stale. */
@@ -388,7 +390,12 @@
     } else if (d.type === 'screenshot') {
       saveScreenshot(d.url, d.name);
     } else if (d.type === 'error') {
-      onerror(String(d.message));
+      onerror({
+        message: String(d.message),
+        line: Number.isInteger(d.line) && d.line > 0 ? d.line : null,
+        column: Number.isInteger(d.column) && d.column > 0 ? d.column : null,
+        code
+      });
     } else if (d.type === 'ok') {
       onerror(null);
     }
@@ -622,7 +629,7 @@
     overflow: hidden;
     outline: none;
     touch-action: none;
-    background: #1b1d25;
+    background: #282c34;
     cursor: crosshair;
   }
   .viewport.grab {

@@ -16,7 +16,7 @@ animate((t, dt) => {
   const count = slider('dots', 100, 1500, 900, 10)
   spin += speed * dt
 
-  clear('#282c34')
+  clear()
   for (let i = 1; i < count; i++) {
     const angle = i * golden + spin
     const radius = spread * sqrt(i) * (1 + 0.1 * sin(t * 1.5 - i * 0.02))
@@ -368,7 +368,7 @@ function axes(color) {
     v = i * step;
     ctx.fillText(String(Number(v.toPrecision(10))), ax + 4, cam.y - v * cam.zoom - 2);
   }
-  ctx.font = '12px ui-sans-serif, system-ui, sans-serif';
+  ctx.font = fontCss(12, o);
   if (o.xLabel != null) {
     ctx.textAlign = 'right';
     ctx.textBaseline = 'bottom';
@@ -925,14 +925,15 @@ function lockView(pan, zoom) {
 }
 
 function text(str, x, y, color, size, align) {
-  if (isStyle(color)) {
+  var st = isStyle(color) ? color : null;
+  if (st) {
     size = color.size;
     align = color.align;
     color = color.color;
   }
   ctx.save();
   if (color) ctx.fillStyle = color;
-  ctx.font = (size == null ? 14 : size) + 'px ui-sans-serif, system-ui, sans-serif';
+  ctx.font = fontCss(size == null ? 14 : size, st);
   ctx.textAlign = align || 'left';
   ctx.textBaseline = 'middle';
   ctx.translate(x, y);
@@ -1753,7 +1754,8 @@ function wedge(x, y, radius, start, end, fill, stroke, lineWidth) {
 }
 
 function label(str, x, y, color, size, align) {
-  if (isStyle(color)) {
+  var st = isStyle(color) ? color : null;
+  if (st) {
     size = color.size;
     align = color.align;
     color = color.color;
@@ -1763,7 +1765,7 @@ function label(str, x, y, color, size, align) {
   ctx.save();
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   if (color) ctx.fillStyle = color;
-  ctx.font = (size == null ? 12 : size) + 'px ui-sans-serif, system-ui, sans-serif';
+  ctx.font = fontCss(size == null ? 12 : size, st);
   ctx.textAlign = align || 'left';
   ctx.textBaseline = 'middle';
   ctx.fillText(String(str), sx, sy);
@@ -2069,7 +2071,8 @@ function swatch(name, value) {
 
 function textBox(str, x, y, color, size, align) {
   var background = 'rgba(21, 23, 30, 0.88)';
-  if (isStyle(color)) {
+  var st = isStyle(color) ? color : null;
+  if (st) {
     size = color.size;
     align = color.align;
     if (color.background) background = color.background;
@@ -2081,7 +2084,7 @@ function textBox(str, x, y, color, size, align) {
   var lh = Math.round(size * 1.3);
   ctx.save();
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.font = size + 'px ui-sans-serif, system-ui, sans-serif';
+  ctx.font = fontCss(size, st);
   var w = 0;
   for (var i = 0; i < lines.length; i++) w = Math.max(w, ctx.measureText(lines[i]).width);
   var bw = w + 2 * pad;
@@ -2103,7 +2106,8 @@ function textBox(str, x, y, color, size, align) {
 }
 
 function dims(x1, y1, x2, y2, text, color, offset) {
-  if (isStyle(text)) {
+  var st = isStyle(text) ? text : null;
+  if (st) {
     color = text.color;
     offset = text.offset;
     text = text.text;
@@ -2135,7 +2139,10 @@ function dims(x1, y1, x2, y2, text, color, offset) {
   var str = text == null ? fmtNumber(l) : String(text);
   var lx = (ax + bx) / 2 + nx * px(10) * (off < 0 ? -1 : 1);
   var ly = (ay + by) / 2 + ny * px(10) * (off < 0 ? -1 : 1);
-  label(str, lx, ly, color, 11, 'center');
+  label(str, lx, ly, {
+    color: color, size: st && st.size ? st.size : 11, align: 'center',
+    font: st && st.font, weight: st && st.weight, italic: st && st.italic
+  });
 }
 
 function grid2d(cols, rows, f) {
@@ -2527,15 +2534,144 @@ function fetchData(e) {
     });
 }
 
+var SANS = 'ui-sans-serif, system-ui, sans-serif';
+var FONT_ALIASES = {
+  sans: SANS,
+  'sans-serif': SANS,
+  serif: 'ui-serif, Georgia, serif',
+  mono: 'ui-monospace, Menlo, Consolas, monospace',
+  monospace: 'ui-monospace, Menlo, Consolas, monospace',
+  rounded: 'ui-rounded, system-ui, sans-serif',
+  cursive: 'cursive',
+  fantasy: 'fantasy'
+};
+var defaultFont = null;
+
+function fontFamily(f) {
+  if (f == null || f === '') return SANS;
+  f = String(f);
+  if (FONT_ALIASES[f]) return FONT_ALIASES[f];
+  if (/[,'"]/.test(f)) return f;
+  return '"' + f + '", ' + SANS;
+}
+
+function fontCss(size, o) {
+  var d = defaultFont || {};
+  o = o || {};
+  var family = o.font != null ? o.font : d.font;
+  var weight = o.weight != null ? o.weight : d.weight;
+  var italic = o.italic != null ? o.italic : d.italic;
+  if (weight === true) weight = 'bold';
+  return (italic ? 'italic ' : '') + (weight ? weight + ' ' : '') + size + 'px ' + fontFamily(family);
+}
+
+function font(family, weight, italic) {
+  if (isStyle(family)) {
+    defaultFont = { font: family.font, weight: family.weight, italic: family.italic };
+  } else if (family == null && weight == null && italic == null) {
+    defaultFont = null;
+  } else {
+    defaultFont = { font: family, weight: weight, italic: italic };
+  }
+}
+
+var fontLoads = Object.create(null);
+
+function loadFont(name, url, descriptors) {
+  name = String(name);
+  var id = name + '|' + (url || '');
+  var e = fontLoads[id];
+  if (!e) {
+    e = fontLoads[id] = { ready: false };
+    var loading = url
+      ? new FontFace(name, 'url(' + JSON.stringify(String(url)) + ')', descriptors || {}).load().then(function (f) {
+          document.fonts.add(f);
+        })
+      : googleFont(name);
+    loading.then(function () {
+      e.ready = true;
+      dirty = true;
+    }, function (err) {
+      emitLog('error', ['loadFont: ' + name + ': ' + (err && err.message ? err.message : String(err)) +
+        (url ? ' (the server must allow cross-origin requests)' : '')]);
+    });
+  }
+  return e.ready;
+}
+
+function googleCss(name, axes) {
+  var url = 'https://fonts.googleapis.com/css2?family=' + encodeURIComponent(name).replace(/%20/g, '+') + axes + '&display=block';
+  return fetch(url).then(function (res) {
+    return res.ok ? res.text() : null;
+  }, function () {
+    return null;
+  });
+}
+
+function googleFont(name) {
+  return googleCss(name, ':ital,wght@0,400;0,700;1,400;1,700')
+    .then(function (css) { return css || googleCss(name, ':wght@400;700'); })
+    .then(function (css) { return css || googleCss(name, ''); })
+    .then(function (css) {
+      if (!css) throw new Error('not found on Google Fonts, or the network is offline');
+      var re = /@font-face\\s*\\{([^}]*)\\}/g;
+      var m;
+      var count = 0;
+      while ((m = re.exec(css))) {
+        var block = m[1];
+        var src = /src:\\s*url\\(([^)]+)\\)/.exec(block);
+        if (!src) continue;
+        var d = {};
+        var w = /font-weight:\\s*([^;]+);/.exec(block);
+        var st = /font-style:\\s*([^;]+);/.exec(block);
+        var ur = /unicode-range:\\s*([^;]+);/.exec(block);
+        if (w) d.weight = w[1].trim();
+        if (st) d.style = st[1].trim();
+        if (ur) d.unicodeRange = ur[1].trim();
+        document.fonts.add(new FontFace(name, 'url(' + src[1] + ')', d));
+        count++;
+      }
+      if (!count) throw new Error('not found on Google Fonts');
+      var family = '"' + name + '"';
+      return Promise.all([
+        document.fonts.load('16px ' + family, 'Aa'),
+        document.fonts.load('bold 16px ' + family, 'Aa'),
+        document.fonts.load('italic 16px ' + family, 'Aa')
+      ]);
+    });
+}
+
+var lineOffset = null;
+
+function sketchLineOffset() {
+  if (lineOffset !== null) return lineOffset;
+  lineOffset = 1;
+  try {
+    Function('a', 'return (function () {\\nthrow new Error()\\n})();\\n//# sourceURL=vexel-probe.js')();
+  } catch (e) {
+    var m = /vexel-probe[.]js:([0-9]+)/.exec(e && e.stack || '');
+    if (m) lineOffset = Number(m[1]) - 1;
+  }
+  return lineOffset;
+}
+
+function errorLocation(err) {
+  var m = /vexel-sketch[.]js:([0-9]+):([0-9]+)/.exec(err && err.stack || '');
+  if (!m) return null;
+  var line = Number(m[1]) - sketchLineOffset();
+  return line >= 1 ? { line: line, column: Number(m[2]) } : null;
+}
+
 function report(err) {
   halted = true;
   var message = err && err.message ? err.message : String(err);
-  post({ source: 'vexel', type: 'error', message: message });
+  var at = errorLocation(err);
+  post({ source: 'vexel', type: 'error', message: message, line: at ? at.line : null, column: at ? at.column : null });
   if (standalone) {
     console.error(err);
     var box = document.getElementById('err');
     if (box) {
-      box.textContent = message;
+      box.textContent = message + (at ? ' (line ' + at.line + ')' : '');
       box.style.display = 'block';
     }
   }
@@ -2565,7 +2701,7 @@ var scopeNames = [
   'clamp', 'map', 'smoothstep', 'ease', 'noise',
   'mix', 'alpha', 'ramp', 'legend', 'colorbar', 'pause', 'step', 'slider2d', 'swatch',
   'textBox', 'dims', 'grid2d', 'screenshot', 'number',
-  'file', 'load', 'parse', 'csvParse'
+  'file', 'load', 'parse', 'csvParse', 'font', 'loadFont'
 ];
 var scopeValues = [
   canvas, ctx, view, mouse, frame, animate,
@@ -2584,7 +2720,7 @@ var scopeValues = [
   clamp, map, smoothstep, ease, noise,
   mix, alpha, ramp, legend, colorbar, pause, step, slider2d, swatch,
   textBox, dims, grid2d, screenshot, number,
-  file, load, parse, csvParse
+  file, load, parse, csvParse, font, loadFont
 ];
 Object.getOwnPropertyNames(Math).forEach(function (name) {
   if (scopeNames.indexOf(name) >= 0) return;
@@ -2599,12 +2735,13 @@ function execute() {
     if (!sketch) {
       sketch = Function.apply(
         null,
-        scopeNames.concat('return (function () {\\n' + CODE + '\\n})();')
+        scopeNames.concat('return (function () {\\n' + CODE + '\\n})();\\n//# sourceURL=vexel-sketch.js')
       );
     }
     hoverTests = [];
     handleList = [];
     seed(DEFAULT_SEED);
+    defaultFont = null;
     latchClicks();
     resetStyle();
     sketch.apply(null, scopeValues);
@@ -2935,7 +3072,7 @@ export function buildPreviewDoc(code: string, options: PreviewDocOptions = {}): 
 <title>vexel sketch</title>
 <link rel="icon" href="${dataUri(faviconSvg)}">`
     : '';
-  const background = standalone ? '#1b1d25' : 'transparent';
+  const background = standalone ? '#282c34' : 'transparent';
   const extraStyle = standalone
     ? `
   #err { display: none; position: fixed; left: 0; right: 0; bottom: 0; margin: 0; padding: 8px 12px;

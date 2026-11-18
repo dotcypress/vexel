@@ -27,11 +27,11 @@ Vexel is an installable PWA. When served over HTTPS (or from `localhost`), the b
 - **Screenshot** (the camera button above the preview) saves the sketch as a PNG with a small Vexel badge in the corner; `screenshot()` does the same from code.
 - **Export HTML** (the download button above the preview) downloads a self-contained page with its own pan, zoom, sliders and helpers.
 - The **Examples** menu loads ready-made sketches (shapes, plots, a phase portrait, the Mandelbrot set, charts, interactive toys). Their comments explain the helpers they use.
-- The in-app **Help** has every helper with an example and a ▶ button that loads it into the editor and runs it, and `Ctrl + Space` autocompletes them.
+- The in-app **Help** has every helper with an example and a ▶ button that loads it into the editor and runs it, `Ctrl + Space` autocompletes them, and resting the pointer on a helper's name in the editor shows its docs and example.
 
 ```js
 animate((t) => {
-  clear('#282c34')
+  clear()
   grid()
   axes()
   circle(cos(t) * 60, sin(t) * 60, 10, palette(0))
@@ -52,7 +52,7 @@ animate((t) => {
 
 ### Helpers
 
-Arguments always come in the same order: geometry first, then colors, then size or line width, then extras. Instead of the style arguments you can pass one object: `line(0, 0, 50, 50, { color: 'red', width: 3 })`, `circle(0, 0, 40, { stroke: 'white', width: px(2) })`, `ellipse(0, 0, 60, 30, { fill: 'teal', rotation: 0.5 })`. Stroked helpers also take `dash: [on, off]` in screen pixels.
+Arguments always come in the same order: geometry first, then colors, then size or line width, then extras. Instead of the style arguments you can pass one object: `line(0, 0, 50, 50, { color: 'red', width: 3 })`, `circle(0, 0, 40, { stroke: 'white', width: px(2) })`, `ellipse(0, 0, 60, 30, { fill: 'teal', rotation: 0.5 })`. Stroked helpers also take `dash: [on, off]` in screen pixels. Text helpers (`text`, `label`, `textBox`, `dims`) take `font`, `weight` and `italic`.
 
 Left-out styles fall back to the current `ctx` styles, and helpers never change them. Each run starts with light ink and lines 1 screen pixel wide.
 
@@ -89,6 +89,8 @@ Left-out styles fall back to the current `ctx` styles, and helpers never change 
 | `label(str, x, y, color?, size?, align?)` | Text at a world point, sized in screen pixels. |
 | `textBox(str, x, y, color?, size?, align?)` | Multi-line text on a backdrop, in screen pixels; `x, y` is the top-left corner. |
 | `dims(x1, y1, x2, y2, text?, color?, offset?)` | Dimension line with arrows and a label (default: the length). |
+| `font(family?, weight?, italic?)` | Font for the text helpers for the rest of the run: a name or `'sans'`, `'serif'`, `'mono'`, `'rounded'`; `font()` resets. |
+| `loadFont(name, url?)` | Load a web font from Google Fonts by name, or from a font file URL; true once ready, then redraws. |
 | `image(src, x, y, w?, h?)` | Picture with its bottom-left corner at `x, y`. |
 | `transform(fn, { x, y, rotate, scale })` | Call `fn` with the world moved, rotated and scaled. |
 

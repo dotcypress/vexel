@@ -557,6 +557,18 @@ export const SKETCH: Completion[] = [
     "text, format, options?",
     "Parses text as 'json', 'csv', 'tsv', 'text' or 'lines'.",
     "parse(${text}, \"${json}\")"
+  ),
+  fn(
+    "font",
+    "family?, weight?, italic?",
+    "Sets the font for text helpers for the rest of the run: a font name or 'sans', 'serif', 'mono', 'rounded'. font() resets.",
+    "font('${serif}')"
+  ),
+  fn(
+    "loadFont",
+    "name, url?, descriptors?",
+    "Loads a web font (from Google Fonts by name, or from a url); true once ready, and the sketch redraws.",
+    "loadFont('${name}')"
   )
 ];
 
