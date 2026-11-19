@@ -340,7 +340,7 @@
     if (e.code === 'Space') {
       if (!locked.pan) spaceDown = true;
       e.preventDefault();
-    } else if (e.key === 'f') {
+    } else if (e.ctrlKey && e.key === 'f') {
       document.documentElement.requestFullscreen();
     } else if (e.key === '0') {
       if (!locked.pan && !locked.zoom) resetView();

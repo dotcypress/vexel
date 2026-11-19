@@ -7,7 +7,24 @@ export const MIN_ZOOM = 0.0001;
 export const MAX_ZOOM = 1000000;
 
 export const DEFAULT_CODE = `// Sunflower: each seed sits one golden angle past the last.
-const golden = PI * (3 - sqrt(5))
+// Use the sliders to change the spin speed, the spacing and the number of seeds.
+const GOLDEN_ANGLE = PI * (3 - sqrt(5))
+
+// Breathing: the radius swells by up to 10%, in a ripple that moves outward
+const PULSE_AMOUNT = 0.1
+const PULSE_SPEED = 1.5
+const PULSE_RIPPLE = 0.02
+
+// Dot size wobbles between DOT_SIZE - DOT_WOBBLE and DOT_SIZE + DOT_WOBBLE
+const DOT_SIZE = 4.5
+const DOT_WOBBLE = 2.5
+const WOBBLE_SPEED = 2
+const WOBBLE_RIPPLE = 0.05
+
+// Hue changes a little per seed and drifts over time (degrees per second)
+const HUE_PER_SEED = 0.4
+const HUE_DRIFT = 30
+
 let spin = 0
 
 animate((t, dt) => {
@@ -18,10 +35,12 @@ animate((t, dt) => {
 
   clear()
   for (let i = 1; i < count; i++) {
-    const angle = i * golden + spin
-    const radius = spread * sqrt(i) * (1 + 0.1 * sin(t * 1.5 - i * 0.02))
-    const size = 4.5 + 2.5 * sin(i * 0.05 - t * 2)
-    point(cos(angle) * radius, sin(angle) * radius, hsl(i * 0.4 + t * 30, 90, 60), size)
+    const angle = i * GOLDEN_ANGLE + spin
+    const pulse = 1 + PULSE_AMOUNT * sin(t * PULSE_SPEED - i * PULSE_RIPPLE)
+    const radius = spread * sqrt(i) * pulse
+    const size = DOT_SIZE + DOT_WOBBLE * sin(i * WOBBLE_RIPPLE - t * WOBBLE_SPEED)
+    const color = hsl(i * HUE_PER_SEED + t * HUE_DRIFT, 90, 60)
+    point(...polar(radius, angle), color, size)
   }
 })`;
 
